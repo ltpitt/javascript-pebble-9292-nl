@@ -9,7 +9,8 @@ Always reference these instructions first and fallback to search or bash command
 ### Prerequisites and Environment Setup
 - Install Python 3.12+ and pip3: `python3 --version` (should show 3.12+)
 - Install Node.js and npm: `npm --version` (should show 10.8+)
-- Install Pebble SDK: `pip3 install pebble-tool` -- **NOTE: This installation frequently fails due to network timeouts. NEVER CANCEL during installation attempts. Set timeout to 300+ seconds. If it fails, development can continue with limited functionality.**
+- **Recommended**: Use Docker-based Pebble development environment: `https://github.com/pebble-dev/rebble-docker`
+- **Alternative**: Install Pebble SDK: `pip3 install pebble-tool` -- **NOTE: This installation frequently fails due to network timeouts. NEVER CANCEL during installation attempts. Set timeout to 300+ seconds. If it fails, development can continue with limited functionality.**
 
 ### Project Structure Validation
 - Always verify project structure first:
@@ -43,7 +44,9 @@ The appinfo.json references resources that don't exist in the repository:
 **Before building:** Create placeholder images or update appinfo.json to remove references to missing files.
 
 ### Build Process
-**WARNING**: Pebble SDK installation frequently fails due to network connectivity issues. The following represents the intended workflow when SDK is available:
+**RECOMMENDED**: Use Docker-based development environment from `https://github.com/pebble-dev/rebble-docker` to avoid SDK installation issues.
+
+**ALTERNATIVE**: Traditional Pebble SDK installation (frequently fails due to network connectivity issues):
 
 1. **Install Pebble SDK** (expected time: 5-10 minutes, frequently fails):
    ```bash
@@ -141,6 +144,7 @@ The application currently has JavaScript scope issues that prevent proper operat
 #### SDK Installation Failures
 - **Symptom**: `pip3 install pebble-tool` times out or fails
 - **Cause**: Network connectivity issues to PyPI servers
+- **Recommended Solution**: Use Docker-based development environment from `https://github.com/pebble-dev/rebble-docker`
 - **Workaround**: Development can continue with JavaScript validation only
 - **DO NOT**: Repeatedly cancel and retry - each attempt takes 5+ minutes
 
@@ -167,9 +171,10 @@ No automated build pipeline exists. Manual validation required:
 4. **Expected total time**: 2-3 minutes for full validation
 
 ### Emergency Procedures
-If Pebble SDK is completely unavailable:
-1. **Continue development** using JavaScript validation only
-2. **Use Node.js** for syntax checking: `node -c src/app.js`
-3. **Use JSHint** for code quality: `npx jshint src/app.js`
-4. **Document changes** for later testing when SDK becomes available
-5. **DO NOT** attempt to modify build processes or create workarounds
+If traditional Pebble SDK is completely unavailable:
+1. **First option**: Use Docker-based development environment from `https://github.com/pebble-dev/rebble-docker`
+2. **Continue development** using JavaScript validation only
+3. **Use Node.js** for syntax checking: `node -c src/app.js`
+4. **Use JSHint** for code quality: `npx jshint src/app.js`
+5. **Document changes** for later testing when SDK becomes available
+6. **DO NOT** attempt to modify build processes or create workarounds
