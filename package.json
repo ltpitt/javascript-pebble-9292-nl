@@ -1,0 +1,17 @@
+{
+  "name": "javascript-pebble-9292-nl",
+  "version": "1.0.0",
+  "description": "Pebble javscript client to access 9292.nl API and services",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "eslint": "^9.35.0",
+    "jshint": "^2.13.6",
+    "jslint": "^0.12.1"
+  }
+}
