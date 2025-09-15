@@ -54,6 +54,28 @@ If you were using the original version:
 2. To get real data, obtain a 9292.nl API subscription
 3. Configure your API key in the settings
 
+## Development & Testing
+
+### Running the App
+For development and testing, you can use [rebble-docker](https://github.com/pebble-dev/rebble-docker) to run the Pebble app in an emulated environment:
+
+```bash
+# Clone and set up rebble-docker
+git clone https://github.com/pebble-dev/rebble-docker.git
+cd rebble-docker
+docker-compose up -d
+
+# Access the Pebble simulator at http://localhost:9000
+```
+
+This provides a complete Pebble development environment including:
+- Pebble SDK and tools
+- CloudPebble IDE interface
+- Device simulator for testing
+
+### Building the App
+The app is built using Pebble.js SDK v3. You can import the project into CloudPebble or use the command-line tools provided by rebble-docker.
+
 ## Contributing
 
 Pull requests welcome for additional API integrations and improvements.
