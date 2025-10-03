@@ -1,87 +1,212 @@
-Pebble.js
-=========
+# NextRide - Dutch Public Transport for Pebble
 
-[![Build Status](https://travis-ci.org/pebble/pebblejs.svg?branch=master)](https://travis-ci.org/pebble/pebblejs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Pebble.js lets you write beautiful Pebble applications completely in JavaScript.
+NextRide is a Pebble smartwatch application that provides real-time Dutch public transport information using the 9292.nl API. Get instant access to departure times for buses, trams, and metro services right on your wrist.
 
-Pebble.js applications run on your phone. They have access to all the resources of your phone (internet connectivity, GPS, almost unlimited memory, etc). Because they are written in JavaScript they are also perfect to make HTTP requests and connect your Pebble to the internet.
+## Features
 
-**Warning:** Pebble.js is still in beta, so breaking API changes are possible. Pebble.js is best suited for prototyping and applications that inherently require communication in response to user actions, such as accessing the internet. Please be aware that as a result of Bluetooth round-trips for all actions, Pebble.js apps will use more power and respond slower to user interaction than a similar native app.
+- **Real-time Departure Information**: View live departure times for your nearby public transport stops
+- **GPS Location Detection**: Automatically detects your current location to find the closest transit stops
+- **Saved Locations**: Save frequently used addresses (home, work, etc.) for quick access
+- **Smart Suggestions**: Get intelligent suggestions for the best bus or metro stop to reach your destination
+- **Trip Planning**: Receive detailed trip information including:
+  - Departure times
+  - Route numbers
+  - Stop names
+  - Travel duration
+- **9292.nl Integration**: Powered by the comprehensive Dutch public transport database
 
-> ![JSConf 2014](http://2014.jsconf.us/img/logo.png)
->
-> Pebble.js was announced during JSConf 2014!
+## Supported Platforms
 
-## Getting Started
+- Pebble Classic (Aplite)
+- Pebble Steel (Aplite)
+- Pebble Time (Basalt)
+- Pebble Time Steel (Basalt)
+- Pebble Time Round (Chalk)
+- Pebble 2 (Diorite)
+- Pebble Time 2 (Emery)
 
- * In CloudPebble
+## Requirements
 
-   The easiest way to use Pebble.js is in [CloudPebble](https://cloudpebble.net). Select the 'Pebble.js' project type when creating a new project.
+- A Pebble smartwatch (any model)
+- Pebble mobile app installed on your smartphone (iOS or Android)
+- Internet connection on your phone
+- Location services enabled (for automatic location detection)
 
-   [Build a Pebble.js application now in CloudPebble >](https://cloudpebble.net)
+## Installation
 
- * With the Pebble SDK
+### From the Pebble App Store
 
-   This option allows you to customize Pebble.js. Follow the [Pebble SDK installation instructions](https://developer.pebble.com/sdk/install/) to install the SDK on your computer and [fork this project](http://github.com/pebble/pebblejs) on Github. 
+1. Open the Pebble app on your smartphone
+2. Navigate to the App Store
+3. Search for "NextRide"
+4. Tap "Install" to add it to your Pebble
+
+### Manual Installation (for developers)
+
+1. Install the [Pebble SDK](https://developer.pebble.com/sdk/install/)
+2. Clone this repository:
+   ```bash
+   git clone https://github.com/ltpitt/javascript-pebble-9292-nl.git
+   cd javascript-pebble-9292-nl
+   ```
+3. Build the application:
+   ```bash
+   pebble build
+   ```
+4. Install on your Pebble:
+   ```bash
+   pebble install --phone <YOUR_PHONE_IP>
+   ```
+
+## Usage
+
+### First Launch
+
+1. Launch NextRide from your Pebble's app menu
+2. The app will request location access - allow it to find nearby stops
+3. Wait a moment while the app detects your location and fetches nearby stops
+
+### Viewing Departures
+
+- The app will display nearby public transport stops
+- Select a stop to view upcoming departures
+- Scroll through the list to see all available routes and departure times
+
+### Saving Locations
+
+1. Open the app settings in the Pebble mobile app
+2. Add your frequently used addresses:
+   - Home address
+   - Work address
+   - Custom saved locations
+3. These locations will appear in the app for quick access
+
+### Configuration
+
+Access the configuration page through the Pebble mobile app to customize:
+
+- **Saved Addresses**: Add home, work, and other frequent locations
+- **Default Location**: Set which location to show on app launch
+- **Refresh Interval**: Configure how often departure times are updated
+- **Maximum Results**: Choose how many departures to display
+## How It Works
+
+### Architecture
+
+NextRide is built on Pebble.js, which allows the app to run on your smartphone and communicate with your Pebble via Bluetooth. This architecture provides several advantages:
+
+- **Internet Access**: The app can make HTTP requests to the 9292.nl API
+- **GPS Location**: Access to your phone's GPS for accurate location detection
+- **Processing Power**: Complex calculations are handled by your phone
+- **Battery Efficiency**: Offloads processing from your Pebble's limited battery
+
+### 9292.nl API Integration
+
+The app uses the public transport API from [9292.nl](https://9292.nl), which provides:
+
+- Real-time departure information for all Dutch public transport
+- Route planning and trip suggestions
+- Stop locations and walking directions
+- Service alerts and disruptions
+
+### GPS Location Services
+
+When you launch the app:
+
+1. Your phone's GPS determines your current location
+2. The app queries the 9292.nl API for nearby stops
+3. Stops are sorted by distance from your location
+4. You can select any stop to view departures
+
+## Development
+
+### Project Structure
+
+```
+javascript-pebble-9292-nl/
+├── src/
+│   ├── js/              # JavaScript source code
+│   │   ├── app.js       # Main application logic
+│   │   ├── lib/         # Pebble.js library files
+│   │   └── ui/          # UI components
+│   ├── simply/          # C backend code
+│   └── main.c           # C entry point
+├── resources/
+│   ├── images/          # App icons and images
+│   └── fonts/           # Custom fonts
+├── appinfo.json         # App metadata and configuration
+├── wscript              # Build script
+└── README.md            # This file
+```
+
+### Building from Source
+
+1. **Install Dependencies**:
+   ```bash
+   # Install Pebble SDK
+   pip install pebble-tool
    
-   The main entry point for your application is in the `src/js/app.js` file. For projects with multiple files, you may move `src/js/app.js` to `src/js/app/index.js` instead and create new files under `src/js/app`.
+   # Verify installation
+   pebble --version
+   ```
 
-   [Install the Pebble SDK on your computer >](http://developer.pebble.com/sdk/install/)
+2. **Clone the Repository**:
+   ```bash
+   git clone https://github.com/ltpitt/javascript-pebble-9292-nl.git
+   cd javascript-pebble-9292-nl
+   ```
 
+3. **Build the Project**:
+   ```bash
+   pebble build
+   ```
 
-Pebble.js applications follow modern JavaScript best practices. To get started, you just need to call `require('ui')` to load the UI module and start building user interfaces.
+4. **Run in Emulator** (for testing):
+   ```bash
+   # For Pebble Time (Basalt)
+   pebble install --emulator basalt
+   
+   # For Pebble Classic (Aplite)
+   pebble install --emulator aplite
+   
+   # For Pebble Time Round (Chalk)
+   pebble install --emulator chalk
+   ```
 
-````js
-var UI = require('ui');
-````
+5. **Install on Physical Device**:
+   ```bash
+   # Via phone IP
+   pebble install --phone <YOUR_PHONE_IP>
+   
+   # Or via CloudPebble
+   # Upload the generated .pbw file through the Pebble app
+   ```
 
-The basic block to build user interface is the [Card]. A Card is a type of [Window] that occupies the entire screen and allows you to display some text in a pre-structured way: a title at the top, a subtitle below it and a body area for larger paragraphs. Cards can be made scrollable to display large quantities of information. You can also add images next to the title, subtitle or in the body area.
+### Modifying the Code
 
-````js
-var card = new UI.Card({
-  title: 'Hello World',
-  body: 'This is your first Pebble app!',
-  scrollable: true
-});
-````
+The main application logic is in `src/js/app.js`. Key areas to modify:
 
-After creating a card window, push it onto the screen with the `show()` method.
+- **API Endpoints**: Update the 9292.nl API URLs if they change
+- **UI Components**: Customize menus, cards, and windows in the UI section
+- **Location Logic**: Adjust GPS accuracy and update frequency
+- **Data Parsing**: Modify how API responses are processed and displayed
 
-````js
-card.show();
-````
+### Testing
 
-To interact with the users, use the buttons or the accelerometer. Add callbacks to a window with the `.on()` method:
+```bash
+# Check JavaScript syntax
+node -c src/js/app.js
 
-````js
-card.on('click', function(e) {
-  card.subtitle('Button ' + e.button + ' pressed.');
-});
-````
+# Run linting (if configured)
+npm run lint
 
-Making HTTP connections is very easy with the included `ajax` library.
-
-````js
-var ajax = require('ajax');
-ajax({ url: 'http://api.theysaidso.com/qod.json', type: 'json' },
-  function(data) {
-    card.body(data.contents.quotes[0].quote);
-    card.title(data.contents.quotes[0].author);
-  }
-);
-````
-
-You can do much more with Pebble.js:
-
- - Get accelerometer values
- - Display complex UI mixing geometric elements, text and images
- - Animate elements on the screen
- - Display arbitrary long menus
- - Use the GPS and LocalStorage on the phone
- - etc!
-
-Keep reading for the full [API Reference].
+# Build and test on all platforms
+pebble build && pebble install --emulator=aplite && \
+pebble install --emulator=basalt && \
+pebble install --emulator=chalk
+```
 
 ## Using Images
 [Using Images]: #using-images
