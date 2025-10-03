@@ -1,3 +1,5 @@
-node_modules/
-*.pbw
-build/
+.DS_Store
+*.pyc
+/.lock-*
+/build/
+/out/
