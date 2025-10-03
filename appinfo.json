@@ -3,8 +3,8 @@
   "capabilities": [
     "configurable"
   ],
-  "companyName": "Meiguro",
-  "longName": "Pebble.js",
+  "companyName": "Davide Nastri",
+  "longName": "NextRide",
   "resources": {
     "media": [
       {
@@ -31,7 +31,7 @@
     ]
   },
   "sdkVersion": "3",
-  "shortName": "Pebble.js",
+  "shortName": "NextRide",
   "targetPlatforms": [
     "aplite",
     "basalt",
@@ -39,7 +39,7 @@
     "diorite",
     "emery"
   ],
-  "uuid": "133215f0-cf20-4c05-997b-3c9be5a64e5b",
+  "uuid": "177215f0-cf20-4c05-997b-3c9be5a64e5b",
   "versionCode": 1,
   "versionLabel": "0.4",
   "watchapp": {
