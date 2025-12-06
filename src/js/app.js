@@ -106,17 +106,11 @@ function getCurrentLocation(callback) {
 function findNearbyStops(lat, lon, callback) {
   console.log('Finding stops near: ' + lat + ', ' + lon);
   
-  // Use a known stop code for testing - Amsterdam Centraal area
-  // TODO: Implement proper geocoding to find stop codes
-  var testStops = [
-    { code: '8400058', name: 'Amsterdam Centraal', distance: 0.1 }
-  ];
-  
-  console.log('Using test stop: Amsterdam Centraal');
-  callback(null, testStops);
-  
-  /* Original implementation - OV API doesn't provide coordinate-based search
-  var url = 'http://v0.ovapi.nl/stopareacode/';
+  // Note: This fetches all 4,111+ stops from the API to find nearby ones.
+  // This is a known limitation as the API doesn't support coordinate-based search.
+  // Future improvement: Implement client-side caching of stop data to avoid
+  // repeated downloads, or filter by province/region to reduce data size.
+  var url = 'http://v0.ovapi.nl/stopareacode';
   
   ajax({
     url: url,
@@ -129,22 +123,19 @@ function findNearbyStops(lat, lon, callback) {
     var nearbyStops = [];
     
     for (var stopCode in data) {
-      if (data.hasOwnProperty(stopCode)) {
-        var stop = data[stopCode];
+      var stop = data[stopCode];
+      if (stop && stop.Latitude && stop.Longitude) {
+        var distance = calculateDistance(lat, lon, 
+          parseFloat(stop.Latitude), 
+          parseFloat(stop.Longitude)
+        );
         
-        if (stop.Latitude && stop.Longitude) {
-          var distance = calculateDistance(lat, lon, 
-            parseFloat(stop.Latitude), 
-            parseFloat(stop.Longitude)
-          );
-          
-          if (distance < 0.5) { // Within 500m
-            nearbyStops.push({
-              code: stopCode,
-              name: stop.TimingPointName || stopCode,
-              distance: distance
-            });
-          }
+        if (distance < 0.5) { // Within 500m
+          nearbyStops.push({
+            code: stopCode,
+            name: stop.TimingPointName || stopCode,
+            distance: distance
+          });
         }
       }
     }
@@ -166,7 +157,6 @@ function findNearbyStops(lat, lon, callback) {
     console.log('Status: ' + status);
     callback('Failed to fetch stops: ' + (status || 'network error'));
   });
-  */
 }
 
 // Calculate distance between two coordinates (Haversine formula)
@@ -185,7 +175,7 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 function fetchDepartures(stopCode, stopName, callback) {
   console.log('Fetching departures for: ' + stopCode);
   
-  var url = 'http://v0.ovapi.nl/tpc/' + stopCode;
+  var url = 'http://v0.ovapi.nl/stopareacode/' + stopCode;
   
   ajax({
     url: url,
@@ -196,26 +186,47 @@ function fetchDepartures(stopCode, stopName, callback) {
     
     var departures = [];
     
-    // Parse the response structure
+    // Parse the nested response structure: stopAreaCode → timingPoints → passes
     if (data && data[stopCode]) {
       var stopData = data[stopCode];
-      console.log('Stop data keys: ' + Object.keys(stopData).join(', '));
+      console.log('Stop data has ' + Object.keys(stopData).length + ' timing points');
       
-      // Get all passes (departures)
-      for (var key in stopData) {
-        if (key.indexOf('Passes') !== -1 && stopData[key]) {
-          console.log('Found passes in: ' + key);
-          for (var passKey in stopData[key]) {
-            var pass = stopData[key][passKey];
+      // Iterate through timing points at this stop
+      for (var timingPointCode in stopData) {
+        var timingPoint = stopData[timingPointCode];
+        
+        // Check if this timing point has passes (departures)
+        if (timingPoint && timingPoint.Passes) {
+          console.log('Found passes in timing point: ' + timingPointCode);
+          
+          // Iterate through passes (departures)
+          for (var passId in timingPoint.Passes) {
+            var pass = timingPoint.Passes[passId];
             
-            if (pass.TargetDepartureTime) {
-              departures.push({
-                line: pass.LinePublicNumber || 'Unknown',
-                destination: pass.DestinationName50 || 'Unknown',
-                time: pass.TargetDepartureTime,
-                delay: pass.ExpectedDepartureTime ? 
-                  Math.round((new Date(pass.ExpectedDepartureTime) - new Date(pass.TargetDepartureTime)) / 60000) : 0
-              });
+            if (pass) {
+              // Use ExpectedDepartureTime if available, otherwise TargetDepartureTime
+              var departureTime = pass.ExpectedDepartureTime || pass.TargetDepartureTime;
+              
+              if (departureTime) {
+                var delay = 0;
+                // Calculate delay only if both times are present and valid
+                if (pass.ExpectedDepartureTime && pass.TargetDepartureTime) {
+                  var expectedMs = Date.parse(pass.ExpectedDepartureTime);
+                  var targetMs = Date.parse(pass.TargetDepartureTime);
+                  if (!isNaN(expectedMs) && !isNaN(targetMs)) {
+                    delay = Math.round((expectedMs - targetMs) / 60000);
+                  }
+                }
+                
+                departures.push({
+                  line: pass.LinePublicNumber || 'Unknown',
+                  destination: pass.DestinationName50 || 'Unknown',
+                  time: departureTime,
+                  delay: delay,
+                  type: pass.TransportType || 'BUS',
+                  platform: timingPointCode
+                });
+              }
             }
           }
         }
@@ -429,7 +440,7 @@ loadSettings();
 if ((!appSettings.destinations || appSettings.destinations.length === 0)) {
   console.log('No destinations found - loading test data for emulator');
   
-  // Test data for emulator testing
+  // Test data for emulator testing with real stop area codes
   appSettings.destinations = [
     {
       id: 1,
@@ -442,10 +453,10 @@ if ((!appSettings.destinations || appSettings.destinations.length === 0)) {
     {
       id: 2,
       name: 'Office',
-      address: 'Utrecht Centraal',
+      address: 'Amsterdam Museumplein',
       order: 2,
-      lat: 52.0894,
-      lon: 5.1101
+      lat: 52.3579,
+      lon: 4.8814
     }
   ];
   appSettings.defaultDestination = 'Home';
