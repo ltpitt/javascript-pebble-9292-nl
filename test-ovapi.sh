@@ -27,12 +27,12 @@ NC='\033[0m' # No Color
 # API Configuration
 API_BASE="http://v0.ovapi.nl"
 
-# Known test stop codes
+# Known test stop codes (actual stop area codes from API)
 declare -A TEST_STOPS=(
-    ["8400058"]="Amsterdam Centraal"
-    ["8400530"]="Rotterdam Centraal"
-    ["8400621"]="Utrecht Centraal"
-    ["31000495"]="Amsterdam Dam (tram)"
+    ["asdcs"]="Amsterdam Centraal Station"
+    ["07019"]="Amsterdam Ruysdaelstraat"
+    ["asdhld"]="Amsterdam Holendrecht"
+    ["07006"]="Amsterdam Museumplein"
 )
 
 ###################################################################################
@@ -78,7 +78,7 @@ test_stop_code() {
     print_message "$BLUE" "Stop Code: ${stop_code}"
     print_message "$BLUE" "====================================\n"
     
-    local url="${API_BASE}/tpc/${stop_code}"
+    local url="${API_BASE}/stopareacode/${stop_code}"
     print_message "$YELLOW" "Query URL: ${url}"
     
     # Make request and capture response
@@ -104,42 +104,63 @@ test_stop_code() {
     # Parse and display results
     print_message "$GREEN" "✓ Valid JSON response received\n"
     
-    # Check for stop data
-    local has_stop_data=$(echo "$response" | python3 -c "import sys, json; data=json.load(sys.stdin); print('yes' if '$stop_code' in data else 'no')" 2>/dev/null)
+    # Check for stop data (new API structure: stop area code contains timing points)
+    local has_stop_data=$(echo "$response" | python3 -c "import sys, json; data=json.load(sys.stdin); print('yes' if '$stop_code' in data and data['$stop_code'] else 'no')" 2>/dev/null)
     
     if [ "$has_stop_data" = "yes" ]; then
         print_message "$GREEN" "✓ Stop data found in response"
         
-        # Count departures
-        local departure_count=$(echo "$response" | python3 -c "import sys, json; data=json.load(sys.stdin); stop=data.get('$stop_code', {}); passes=stop.get('Passes', {}); print(len(passes))" 2>/dev/null)
+        # Count departures (iterate through timing points)
+        local departure_count=$(echo "$response" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+stop_data = data.get('$stop_code', {})
+total = 0
+for timing_point in stop_data.values():
+    if isinstance(timing_point, dict) and 'Passes' in timing_point:
+        total += len(timing_point['Passes'])
+print(total)
+" 2>/dev/null)
         
         if [ "$departure_count" -gt 0 ]; then
             print_message "$GREEN" "✓ Found ${departure_count} departures"
             
-            # Display first few departures
+            # Display first few departures (iterate through timing points)
             print_message "$BLUE" "\nSample Departures:"
             echo "$response" | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
 stop_data = data.get('$stop_code', {})
-passes = stop_data.get('Passes', {})
 
 count = 0
-for pass_id, pass_data in passes.items():
-    if count >= 3:  # Show only first 3
-        break
-    line = pass_data.get('LinePublicNumber', 'N/A')
-    dest = pass_data.get('DestinationName50', 'N/A')
-    time = pass_data.get('ExpectedDepartureTime', pass_data.get('TargetDepartureTime', 'N/A'))
-    transport = pass_data.get('TransportType', 'N/A')
-    print(f'  {count+1}. Line {line} → {dest}')
-    print(f'     Departure: {time}')
-    print(f'     Type: {transport}')
-    print()
-    count += 1
+total_passes = 0
 
-if len(passes) > 3:
-    print(f'  ... and {len(passes) - 3} more departures')
+for timing_point_code, timing_point in stop_data.items():
+    if not isinstance(timing_point, dict) or 'Passes' not in timing_point:
+        continue
+    
+    passes = timing_point['Passes']
+    total_passes += len(passes)
+    
+    for pass_id, pass_data in passes.items():
+        if count >= 3:  # Show only first 3
+            break
+        line = pass_data.get('LinePublicNumber', 'N/A')
+        dest = pass_data.get('DestinationName50', 'N/A')
+        time = pass_data.get('ExpectedDepartureTime', pass_data.get('TargetDepartureTime', 'N/A'))
+        transport = pass_data.get('TransportType', 'N/A')
+        print(f'  {count+1}. Line {line} → {dest}')
+        print(f'     Departure: {time}')
+        print(f'     Type: {transport}')
+        print(f'     Platform: {timing_point_code}')
+        print()
+        count += 1
+    
+    if count >= 3:
+        break
+
+if total_passes > 3:
+    print(f'  ... and {total_passes - 3} more departures')
 " 2>/dev/null
             
         else
@@ -238,8 +259,9 @@ main() {
     print_message "$GREEN" "====================================\n"
     
     print_message "$BLUE" "Summary of Findings:"
-    print_message "$YELLOW" "  • API Endpoint: ${API_BASE}/tpc/{stop_code}"
-    print_message "$YELLOW" "  • Response Format: JSON"
+    print_message "$YELLOW" "  • API Endpoint: ${API_BASE}/stopareacode/{stop_code}"
+    print_message "$YELLOW" "  • Stop Discovery: ${API_BASE}/stopareacode (4,111 stops)"
+    print_message "$YELLOW" "  • Response Format: JSON (nested: area → timing points → passes)"
     print_message "$YELLOW" "  • Authentication: None required"
     print_message "$YELLOW" "  • Real-time Data: Yes (includes delays)"
     print_message "$YELLOW" "  • Required Fields: LinePublicNumber, DestinationName50, ExpectedDepartureTime"
