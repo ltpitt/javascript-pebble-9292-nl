@@ -1,180 +1,177 @@
-# 9292.nl for Pebble - Development Instructions
+# NextRide for Pebble - Development Instructions
 
-A Pebble.js smartwatch application for accessing Dutch public transport information from the 9292.nl API.
+A Pebble.js smartwatch application for accessing Dutch public transport information via OV API (ovapi.nl).
 
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
 ## Working Effectively
 
 ### Prerequisites and Environment Setup
-- Install Python 3.12+ and pip3: `python3 --version` (should show 3.12+)
 - Install Node.js and npm: `npm --version` (should show 10.8+)
-- **Recommended**: Use Docker-based Pebble development environment: `https://github.com/pebble-dev/rebble-docker`
-- **Alternative**: Install Pebble SDK: `pip3 install pebble-tool` -- **NOTE: This installation frequently fails due to network timeouts. NEVER CANCEL during installation attempts. Set timeout to 300+ seconds. If it fails, development can continue with limited functionality.**
+- **Install Rebble SDK**: Follow official guide at `https://developer.repebble.com/sdk/`
+- The new Rebble SDK replaces the old pebble-tool and provides local emulator support
+- SDK includes `pebble` command-line tool for building and testing
 
 ### Project Structure Validation
 - Always verify project structure first:
   ```bash
-  cd /home/runner/work/javascript-pebble-9292-nl/javascript-pebble-9292-nl
   ls -la
-  # Expected: LICENSE, README.md, appinfo.json, resources/, src/
+  # Expected: LICENSE, README.md, appinfo.json, resources/, src/, TASKS.md
   ```
 - Validate appinfo.json: `cat appinfo.json | python3 -m json.tool`
-- Validate JavaScript syntax: `node -c src/app.js`
+- Validate JavaScript syntax: `node -c src/js/app.js`
 
 ### JavaScript Code Quality
-- Install linting tools: `npm install --save-dev jslint jshint eslint` -- takes 10-15 seconds
-- Run JavaScript validation: `npx jshint src/app.js`
-- **KNOWN ISSUES in src/app.js (line numbers may vary):**
-  - Line ~39: 'chosenDeparture' is already defined
-  - Line ~40: 'chosenDestination' is already defined  
-  - Line ~41: 'APIURL' is already defined
-  - Line ~43: 'APIURL' used out of scope
-  - Line ~43: 'chosenDestination' used out of scope
-- **CRITICAL**: These JavaScript scope issues must be fixed before the app will function correctly
+- Install linting tools: `npm install --save-dev jshint eslint` -- takes 10-15 seconds
+- Run JavaScript validation: `npx jshint src/js/app.js`
+- Currently implementing fresh NextRide app - no legacy code issues
 
-### Missing Resources Issue
-The appinfo.json references resources that don't exist in the repository:
-- `resources/images/menu_icon.png` -- **MISSING**
-- `resources/images/logo_splash.png` -- **MISSING**  
-- `resources/images/tile_splash.png` -- **MISSING**
-- `resources/fonts/UbuntuMono-Regular.ttf` -- **MISSING**
-- `resources/images/bus.png` -- ✓ Present (28x28 PNG)
-
-**Before building:** Create placeholder images or update appinfo.json to remove references to missing files.
+### Resources Status
+All required resources are present:
+- `resources/images/menu_icon.png` -- ✓ Present
+- `resources/images/logo_splash.png` -- ✓ Present
+- `resources/images/tile_splash.png` -- ✓ Present
+- `resources/fonts/UbuntuMono-Regular.ttf` -- ✓ Present
 
 ### Build Process
-**RECOMMENDED**: Use Docker-based development environment from `https://github.com/pebble-dev/rebble-docker` to avoid SDK installation issues.
+Using the new Rebble SDK from `https://developer.repebble.com/sdk/`:
 
-**ALTERNATIVE**: Traditional Pebble SDK installation (frequently fails due to network connectivity issues):
-
-1. **Install Pebble SDK** (expected time: 5-10 minutes, frequently fails):
-   ```bash
-   pip3 install pebble-tool
-   # If this fails with timeout errors, try:
-   # pip3 install --timeout=300 --retries=1 pebble-tool
-   ```
-
-2. **Build the application** (expected time: 30-60 seconds when SDK works):
+1. **Build the application** (expected time: 30-60 seconds):
    ```bash
    pebble build
-   # NEVER CANCEL: Wait for completion even if it appears to hang
+   # Builds for all target platforms defined in appinfo.json
    ```
 
-3. **Package for installation** (expected time: 10-15 seconds):
+2. **Run in local emulator** (expected time: 10-15 seconds):
+   ```bash
+   pebble install --emulator basalt
+   # Launches emulator and installs the app
+   # Platforms: aplite, basalt, chalk, diorite, emery
+   ```
+
+3. **Package for distribution** (optional):
    ```bash
    pebble package
-   # Creates a .pbw file for sideloading to watch
+   # Creates a .pbw file for sideloading to physical watch
    ```
 
 ### Testing and Validation
 
 #### JavaScript Validation (Always Works)
-- **ALWAYS run before any changes**: `node -c src/app.js`
-- **Check code quality**: `npx jshint src/app.js` 
+- **ALWAYS run before any changes**: `node -c src/js/app.js`
+- **Check code quality**: `npx jshint src/js/app.js` 
 - **Expected time**: 1-2 seconds
 
-#### API Connectivity Testing (May Fail)
-- **Test 9292 API accessibility**: `curl -I https://api.9292.nl/0.1/locations/`
-- **NOTE**: This API may not be accessible from all environments
-- The app uses endpoints like: `https://api.9292.nl/0.1/locations/{location}/departure-times?lang=en-GB`
+#### API Connectivity Testing
+- **Test OV API accessibility**: `curl -I https://ovapi.nl/`
+- The app uses ovapi.nl for real-time Dutch public transport data
+- API is free and open, no authentication required
 
 #### End-to-End Validation
-**CRITICAL**: Cannot be performed without Pebble hardware or emulator. Document that testing requires:
-1. Pebble smartwatch paired with phone
-2. Pebble app installed and configured
-3. Location services enabled
-4. Network connectivity for 9292.nl API
+Testing can be performed using the local Rebble emulator:
+1. **Build and launch**: `pebble build && pebble install --emulator basalt`
+2. **Test in emulator**: Use emulator's simulated location and network
+3. **Manual testing**: Follow TASKS.md for test scenarios
+4. **Physical device testing**: Optional - install .pbw on actual Pebble watch
 
 ### Development Workflow
 
 #### Making Code Changes
-1. **ALWAYS validate syntax first**: `node -c src/app.js`
-2. **Run linting**: `npx jshint src/app.js`
-3. **Fix any JavaScript scope errors** (see Known Issues above)
-4. **Test building** (if SDK available): `pebble build`
-5. **NEVER CANCEL builds** - Pebble builds can take 60+ seconds
+1. **Check TASKS.md** for current task and success criteria
+2. **ALWAYS validate syntax first**: `node -c src/js/app.js`
+3. **Run linting**: `npx jshint src/js/app.js`
+4. **Test building**: `pebble build`
+5. **Test in emulator**: `pebble install --emulator basalt`
+6. **Update TASKS.md** when task is complete
 
-#### Required Fixes for Functionality
-The application currently has JavaScript scope issues that prevent proper operation:
-- Variables `chosenDeparture`, `chosenDestination`, and `APIURL` are redeclared
-- Variables are used outside their scope
-- These must be fixed by either using proper scope or renaming variables
+#### Development Approach
+- Following TDD principles with manual testing
+- Complete one task at a time from TASKS.md
+- Test each task before moving to next
+- Document any issues or API limitations discovered
 
 #### Configuration Changes
 - **App configuration**: Edit `appinfo.json` (validate with `python3 -m json.tool`)
 - **Resource changes**: Update `resources/` directory and corresponding `appinfo.json` entries
-- **API endpoints**: Modify API URLs in `src/app.js` (around lines 35 and 41)
+- **Configuration page**: Edit `config.html` for user-facing settings
+- **API endpoints**: OV API integration in `src/js/app.js`
 
 ### Common Tasks and Known Timings
 
 #### Repository Operations (Always Work)
 - **Repository exploration**: `find . -name "*.js" -o -name "*.json"` -- 1 second
 - **Check file structure**: `ls -la resources/` -- instant
-- **View source code**: `cat src/app.js` -- instant
+- **View source code**: `cat src/js/app.js` -- instant
+- **Check tasks**: `cat TASKS.md` -- instant
 
-#### Build Operations (Require SDK)
-- **Clean build**: `pebble clean && pebble build` -- 60-90 seconds. NEVER CANCEL.
+#### Build Operations (Require Rebble SDK)
+- **Clean build**: `pebble clean && pebble build` -- 30-60 seconds
+- **Install to emulator**: `pebble install --emulator basalt` -- 10-20 seconds
 - **Package for distribution**: `pebble package` -- 10-15 seconds
-- **Install to emulator**: `pebble install --emulator` -- 30-45 seconds
 
 ### Project Context and Architecture
 
 #### Application Purpose
 - **Transit Information**: Provides real-time departure information for Dutch public transport
-- **Hardcoded Routes**: Currently configured for specific Aalsmeer/Haarlem routes
-- **API Integration**: Uses 9292.nl REST API for live data
-- **Location Services**: Can use GPS for location-based queries (disabled in current code)
+- **User-Configurable**: Users set destinations via config page; can use GPS or saved locations
+- **API Integration**: Uses OV API (ovapi.nl) for free, real-time transit data
+- **Location Services**: Supports both GPS and manually configured addresses
 
 #### Key Files and Their Purpose
 - **`appinfo.json`**: Pebble app metadata, capabilities, and resource definitions
-- **`src/app.js`**: Main application logic using Pebble.js APIs (ui, ajax, vibe, settings)
-- **`resources/images/bus.png`**: Menu icon for the application
+- **`src/js/app.js`**: Main application logic using Pebble.js APIs (ui, ajax, settings)
+- **`src/js/main.js`**: Pebble.js framework loader
+- **`src/main.c`**: Native C host for Pebble.js runtime
+- **`config.html`**: Configuration page for user settings (opens on phone)
+- **`TASKS.md`**: Development task tracking with success criteria
 - **`LICENSE`**: MIT license
-- **`README.md`**: Basic project description (minimal)
+- **`README.md`**: Project documentation
 
 #### Technical Dependencies
 - **Pebble.js SDK 3**: JavaScript framework for Pebble development
-- **9292.nl API**: Dutch public transport information service
+- **OV API (ovapi.nl)**: Free, open Dutch public transport API
 - **Node.js**: For JavaScript validation and tooling
-- **Python 3**: For Pebble SDK installation and tooling
+- **Rebble SDK**: Official Pebble development toolkit
 
 ### Troubleshooting
 
-#### SDK Installation Failures
-- **Symptom**: `pip3 install pebble-tool` times out or fails
-- **Cause**: Network connectivity issues to PyPI servers
-- **Recommended Solution**: Use Docker-based development environment from `https://github.com/pebble-dev/rebble-docker`
-- **Workaround**: Development can continue with JavaScript validation only
-- **DO NOT**: Repeatedly cancel and retry - each attempt takes 5+ minutes
+#### Build Failures
+- **Symptom**: `pebble build` fails
+- **Solution**: Check appinfo.json syntax with `python3 -m json.tool appinfo.json`
+- **Solution**: Validate JavaScript with `node -c src/js/app.js`
+- **Check**: Ensure all resources referenced in appinfo.json exist
 
-#### JavaScript Scope Errors
-- **Symptom**: JSHint reports variable redefinition errors
-- **Fix**: Rename variables or restructure scope in `src/app.js`
-- **CRITICAL**: App will not function correctly with these errors
-
-#### Missing Resources
-- **Symptom**: appinfo.json references non-existent files
-- **Fix**: Either create placeholder resources or remove references from appinfo.json
-- **Note**: Only `bus.png` currently exists
+#### Emulator Issues
+- **Symptom**: Emulator won't start
+- **Solution**: Check Rebble SDK installation at `https://developer.repebble.com/sdk/`
+- **Solution**: Try different platform: `pebble install --emulator aplite`
+- **Logs**: Check emulator output for specific errors
 
 #### API Connectivity Issues
-- **Symptom**: 9292.nl API not accessible
-- **Cause**: Network restrictions or API changes
-- **Impact**: App will not display real transit data
+- **Symptom**: OV API not accessible in emulator
+- **Test**: `curl https://ovapi.nl/` from terminal
+- **Note**: Emulator may need network configuration
+- **Workaround**: Test with mock data first, then real API
+
+#### JavaScript Errors
+- **Symptom**: App crashes or behaves incorrectly
+- **Debug**: Check emulator console/logs for JavaScript errors
+- **Validate**: Run `npx jshint src/js/app.js` for code quality issues
+- **Test**: Use console.log() statements for debugging
 
 ### CI/CD Considerations
-No automated build pipeline exists. Manual validation required:
-1. **Always run**: `node -c src/app.js` for syntax validation
-2. **Always run**: `npx jshint src/app.js` for code quality
-3. **If SDK available**: `pebble build` for full build validation
-4. **Expected total time**: 2-3 minutes for full validation
+Manual validation workflow for each change:
+1. **Always run**: `node -c src/js/app.js` for syntax validation (1-2 seconds)
+2. **Always run**: `npx jshint src/js/app.js` for code quality (1-2 seconds)
+3. **Always run**: `pebble build` for full build validation (30-60 seconds)
+4. **Test in emulator**: `pebble install --emulator basalt` (10-20 seconds)
+5. **Manual testing**: Follow test steps in TASKS.md
+6. **Expected total time**: 2-3 minutes per change cycle
 
-### Emergency Procedures
-If traditional Pebble SDK is completely unavailable:
-1. **First option**: Use Docker-based development environment from `https://github.com/pebble-dev/rebble-docker`
-2. **Continue development** using JavaScript validation only
-3. **Use Node.js** for syntax checking: `node -c src/app.js`
-4. **Use JSHint** for code quality: `npx jshint src/app.js`
-5. **Document changes** for later testing when SDK becomes available
-6. **DO NOT** attempt to modify build processes or create workarounds
+### Development Best Practices
+1. **Follow TASKS.md**: Work through tasks sequentially
+2. **Test incrementally**: Don't accumulate untested changes
+3. **Use emulator**: Test each feature as it's implemented
+4. **Document issues**: Update TASKS.md with any problems discovered
+5. **Validate before commit**: Always run full validation workflow
+6. **Check logs**: Monitor emulator console for JavaScript errors

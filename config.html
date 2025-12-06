@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>NextRide Configuration</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: #f5f5f5;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #4A90E2;
+            color: white;
+            padding: 20px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            font-weight: 600;
+        }
+        
+        .header p {
+            font-size: 14px;
+            opacity: 0.9;
+            margin-top: 5px;
+        }
+        
+        .content {
+            padding: 20px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+        
+        select, input[type="text"], input[type="number"] {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s;
+        }
+        
+        select:focus, input[type="text"]:focus, input[type="number"]:focus {
+            outline: none;
+            border-color: #4A90E2;
+        }
+        
+        .help-text {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+        
+        .destination-item {
+            background: #f8f9fa;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            position: relative;
+        }
+        
+        .destination-item.editing {
+            border-color: #4A90E2;
+            background: #f0f7ff;
+        }
+        
+        .destination-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        
+        .destination-name {
+            font-weight: 600;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .destination-order {
+            background: #4A90E2;
+            color: white;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .destination-address {
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+        
+        .destination-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+        
+        .btn-primary {
+            background: #4A90E2;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #357ABD;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-secondary:hover {
+            background: #5a6268;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #218838;
+        }
+        
+        .btn-gps {
+            background: #17a2b8;
+            color: white;
+            margin-top: 5px;
+            width: 100%;
+        }
+        
+        .btn-gps:hover {
+            background: #138496;
+        }
+        
+        .btn-gps:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        
+        .btn-add {
+            width: 100%;
+            padding: 15px;
+            background: #28a745;
+            color: white;
+            border: 2px dashed #28a745;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-add:hover {
+            background: #218838;
+            border-color: #218838;
+        }
+        
+        .btn-save-all {
+            width: 100%;
+            padding: 15px;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 20px;
+        }
+        
+        .btn-save-all:hover {
+            background: #357ABD;
+        }
+        
+        .status-message {
+            padding: 12px;
+            margin-bottom: 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            display: none;
+        }
+        
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .edit-form {
+            display: none;
+            padding-top: 10px;
+            border-top: 1px solid #dee2e6;
+            margin-top: 10px;
+        }
+        
+        .edit-form.active {
+            display: block;
+        }
+        
+        .edit-form .form-field {
+            margin-bottom: 10px;
+        }
+        
+        .edit-form .form-field label {
+            font-size: 12px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 4px;
+        }
+        
+        .edit-form input {
+            margin-bottom: 0;
+        }
+        
+        .autocomplete-results {
+            position: absolute;
+            background: white;
+            border: 2px solid #4A90E2;
+            border-top: none;
+            border-radius: 0 0 6px 6px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            width: 100%;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        .autocomplete-item {
+            padding: 10px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .autocomplete-item:hover {
+            background: #f0f7ff;
+        }
+        
+        .autocomplete-item:last-child {
+            border-bottom: none;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #6c757d;
+        }
+        
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        
+        .destination-list {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚌 NextRide</h1>
+            <p>Manage your transit destinations</p>
+        </div>
+        
+        <div class="content">
+            <div id="status" class="status-message"></div>
+            
+            <div class="form-group">
+                <label>Default Destination</label>
+                <select id="default-destination">
+                    <option value="">Choose default...</option>
+                    <option value="gps">Current Location (GPS)</option>
+                </select>
+                <div class="help-text">First destination shown on your watch</div>
+            </div>
+            
+            <div class="destination-list" id="destination-list">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📍</div>
+                    <p>No destinations yet</p>
+                    <p style="font-size: 12px; margin-top: 5px;">Add your first destination below</p>
+                </div>
+            </div>
+            
+            <button class="btn-add" id="add-destination">+ Add Destination</button>
+            
+            <button class="btn-save-all" id="save-all">Save to Watch</button>
+        </div>
+    </div>
+
+    <script>
+        // State management
+        let destinations = [];
+        let defaultDestination = '';
+        let editingId = null;
+        
+        // Load settings on page load
+        window.addEventListener('load', () => {
+            const savedSettings = localStorage.getItem('nextride-settings');
+            if (savedSettings) {
+                try {
+                    const settings = JSON.parse(savedSettings);
+                    destinations = settings.destinations || [];
+                    defaultDestination = settings.defaultDestination || '';
+                    
+                    // Add default destinations if none exist
+                    if (destinations.length === 0) {
+                        addDefaultDestinations();
+                    }
+                    
+                    renderDestinations();
+                    updateDefaultDropdown();
+                } catch (e) {
+                    console.error('Failed to load settings:', e);
+                    addDefaultDestinations();
+                    renderDestinations();
+                }
+            } else {
+                // First time - add Home and Office as defaults
+                addDefaultDestinations();
+                renderDestinations();
+            }
+        });
+        
+        function addDefaultDestinations() {
+            destinations = [
+                {
+                    id: generateId(),
+                    name: 'Home',
+                    address: '',
+                    order: 1,
+                    lat: null,
+                    lon: null
+                }
+            ];
+        }
+        
+        function generateId() {
+            return 'dest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        }
+        
+        function renderDestinations() {
+            const listEl = document.getElementById('destination-list');
+            
+            if (destinations.length === 0) {
+                listEl.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📍</div>
+                        <p>No destinations yet</p>
+                        <p style="font-size: 12px; margin-top: 5px;">Add your first destination below</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            // Sort by order
+            const sorted = [...destinations].sort((a, b) => a.order - b.order);
+            
+            listEl.innerHTML = sorted.map(dest => `
+                <div class="destination-item ${editingId === dest.id ? 'editing' : ''}" data-id="${dest.id}">
+                    <div class="destination-header">
+                        <div class="destination-name">${dest.name || 'Unnamed'}</div>
+                        <div class="destination-order">Order: ${dest.order}</div>
+                    </div>
+                    <div class="destination-address">${dest.address || 'No address set'}</div>
+                    <div class="destination-actions">
+                        <button class="btn btn-primary btn-small" onclick="editDestination('${dest.id}')">Edit</button>
+                        <button class="btn btn-secondary btn-small" onclick="moveUp('${dest.id}')">↑</button>
+                        <button class="btn btn-secondary btn-small" onclick="moveDown('${dest.id}')">↓</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteDestination('${dest.id}')">Delete</button>
+                    </div>
+                    <div class="edit-form ${editingId === dest.id ? 'active' : ''}" id="edit-${dest.id}">
+                        <div class="form-field">
+                            <label>Name</label>
+                            <input type="text" placeholder="e.g., Home, Office, Gym" value="${dest.name}" id="name-${dest.id}">
+                        </div>
+                        <div class="form-field" style="position: relative;">
+                            <label>Address</label>
+                            <input type="text" 
+                                   placeholder="Start typing address..." 
+                                   value="${dest.address}" 
+                                   id="address-${dest.id}"
+                                   oninput="handleAddressInput('${dest.id}')"
+                                   onfocus="handleAddressInput('${dest.id}')"
+                                   onblur="setTimeout(() => hideAutocomplete('${dest.id}'), 200)">
+                            <div id="autocomplete-${dest.id}" class="autocomplete-results" style="display: none;"></div>
+                        </div>
+                        <div class="form-field">
+                            <button class="btn btn-gps btn-small" onclick="useCurrentLocation('${dest.id}')">📍 Use Current Location</button>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-top: 15px;">
+                            <button class="btn btn-success" onclick="saveEdit('${dest.id}')">Save</button>
+                            <button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updateDefaultDropdown() {
+            const select = document.getElementById('default-destination');
+            const sorted = [...destinations].sort((a, b) => a.order - b.order);
+            
+            select.innerHTML = '<option value="">Choose default...</option>' +
+                '<option value="gps"' + (defaultDestination === 'gps' ? ' selected' : '') + '>Current Location (GPS)</option>' +
+                sorted.map(dest => 
+                    `<option value="${dest.id}" ${dest.id === defaultDestination ? 'selected' : ''}>${dest.name || 'Unnamed'}</option>`
+                ).join('');
+        }
+        
+        function editDestination(id) {
+            editingId = id;
+            renderDestinations();
+        }
+        
+        function cancelEdit() {
+            editingId = null;
+            renderDestinations();
+        }
+        
+        function saveEdit(id) {
+            const nameInput = document.getElementById(`name-${id}`);
+            const addressInput = document.getElementById(`address-${id}`);
+            
+            const name = nameInput.value.trim();
+            const address = addressInput.value.trim();
+            
+            if (!name) {
+                showStatus('Name is required', 'error');
+                return;
+            }
+            
+            if (!address) {
+                showStatus('Address is required', 'error');
+                return;
+            }
+            
+            const dest = destinations.find(d => d.id === id);
+            if (dest) {
+                dest.name = name;
+                dest.address = address;
+            }
+            
+            editingId = null;
+            renderDestinations();
+            updateDefaultDropdown();
+            showStatus('Destination updated', 'success');
+        }
+        
+        function deleteDestination(id) {
+            if (!confirm('Delete this destination?')) return;
+            
+            destinations = destinations.filter(d => d.id !== id);
+            if (defaultDestination === id) {
+                defaultDestination = '';
+            }
+            
+            renderDestinations();
+            updateDefaultDropdown();
+            showStatus('Destination deleted', 'success');
+        }
+        
+        function moveUp(id) {
+            const dest = destinations.find(d => d.id === id);
+            if (!dest || dest.order <= 1) return;
+            
+            const prevDest = destinations.find(d => d.order === dest.order - 1);
+            if (prevDest) {
+                prevDest.order++;
+            }
+            dest.order--;
+            
+            renderDestinations();
+            showStatus('Order updated', 'success');
+        }
+        
+        function moveDown(id) {
+            const dest = destinations.find(d => d.id === id);
+            if (!dest) return;
+            
+            const nextDest = destinations.find(d => d.order === dest.order + 1);
+            if (nextDest) {
+                nextDest.order--;
+            }
+            dest.order++;
+            
+            renderDestinations();
+            showStatus('Order updated', 'success');
+        }
+        
+        // Use current GPS location to get address
+        let autocompleteTimeout;
+        
+        function handleAddressInput(id) {
+            const input = document.getElementById(`address-${id}`);
+            const query = input.value.trim();
+            
+            // Clear previous timeout
+            clearTimeout(autocompleteTimeout);
+            
+            if (query.length < 3) {
+                hideAutocomplete(id);
+                return;
+            }
+            
+            // Debounce: wait 500ms after user stops typing
+            autocompleteTimeout = setTimeout(() => {
+                searchAddress(id, query);
+            }, 500);
+        }
+        
+        function searchAddress(id, query) {
+            const autocompleteDiv = document.getElementById(`autocomplete-${id}`);
+            
+            // Show loading
+            autocompleteDiv.innerHTML = '<div class="autocomplete-item">Searching...</div>';
+            autocompleteDiv.style.display = 'block';
+            
+            // Use Nominatim geocoding (free, no API key)
+            // Limit to Netherlands for better results
+            fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&countrycodes=nl&limit=5&addressdetails=1`)
+                .then(response => response.json())
+                .then(results => {
+                    if (results.length === 0) {
+                        autocompleteDiv.innerHTML = '<div class="autocomplete-item">No results found</div>';
+                        return;
+                    }
+                    
+                    autocompleteDiv.innerHTML = results.map(result => `
+                        <div class="autocomplete-item" onclick="selectAddress('${id}', ${result.lat}, ${result.lon}, '${result.display_name.replace(/'/g, "\\'")}')">
+                            ${result.display_name}
+                        </div>
+                    `).join('');
+                })
+                .catch(error => {
+                    console.error('Geocoding error:', error);
+                    autocompleteDiv.innerHTML = '<div class="autocomplete-item">Search failed</div>';
+                });
+        }
+        
+        function selectAddress(id, lat, lon, address) {
+            const addressInput = document.getElementById(`address-${id}`);
+            const dest = destinations.find(d => d.id === id);
+            
+            if (dest) {
+                addressInput.value = address;
+                dest.lat = parseFloat(lat);
+                dest.lon = parseFloat(lon);
+            }
+            
+            hideAutocomplete(id);
+        }
+        
+        function hideAutocomplete(id) {
+            const autocompleteDiv = document.getElementById(`autocomplete-${id}`);
+            if (autocompleteDiv) {
+                autocompleteDiv.style.display = 'none';
+            }
+        }
+        
+        function useCurrentLocation(id) {
+            const addressInput = document.getElementById(`address-${id}`);
+            const dest = destinations.find(d => d.id === id);
+            
+            if (!dest) return;
+            
+            showStatus('Getting your location...', 'success');
+            
+            if (!navigator.geolocation) {
+                showStatus('Geolocation not supported by your browser', 'error');
+                return;
+            }
+            
+            navigator.geolocation.getCurrentPosition(
+                // Success callback
+                function(position) {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    
+                    showStatus('Finding address...', 'success');
+                    
+                    // Use Nominatim reverse geocoding (free, no API key)
+                    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.display_name) {
+                                addressInput.value = data.display_name;
+                                dest.lat = lat;
+                                dest.lon = lon;
+                                showStatus('Address found!', 'success');
+                            } else {
+                                showStatus('Could not find address for this location', 'error');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Geocoding error:', error);
+                            showStatus('Failed to get address. Using coordinates.', 'error');
+                            addressInput.value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+                            dest.lat = lat;
+                            dest.lon = lon;
+                        });
+                },
+                // Error callback
+                function(error) {
+                    let errorMsg = 'Location error: ';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMsg += 'Permission denied. Please allow location access.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMsg += 'Location unavailable.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMsg += 'Request timed out.';
+                            break;
+                        default:
+                            errorMsg += 'Unknown error.';
+                    }
+                    showStatus(errorMsg, 'error');
+                },
+                // Options
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+        
+        // Add new destination
+        document.getElementById('add-destination').addEventListener('click', () => {
+            const maxOrder = destinations.length > 0 
+                ? Math.max(...destinations.map(d => d.order)) 
+                : 0;
+            
+            const newDest = {
+                id: generateId(),
+                name: '',
+                address: '',
+                order: maxOrder + 1,
+                lat: null,
+                lon: null
+            };
+            
+            destinations.push(newDest);
+            editingId = newDest.id;
+            renderDestinations();
+            updateDefaultDropdown();
+        });
+        
+        // Update default destination
+        document.getElementById('default-destination').addEventListener('change', (e) => {
+            defaultDestination = e.target.value;
+        });
+        
+        // Save all to watch
+        document.getElementById('save-all').addEventListener('click', () => {
+            // Validate all destinations have name and address
+            const incomplete = destinations.filter(d => !d.name || !d.address);
+            if (incomplete.length > 0) {
+                showStatus('All destinations must have a name and address', 'error');
+                return;
+            }
+            
+            const settings = {
+                defaultDestination: defaultDestination,
+                destinations: destinations
+            };
+            
+            // Store in localStorage for persistence
+            localStorage.setItem('nextride-settings', JSON.stringify(settings));
+            
+            // Send to watch using Pebble.js configuration close method
+            const encodedSettings = encodeURIComponent(JSON.stringify(settings));
+            document.location = 'pebblejs://close#' + encodedSettings;
+        });
+        
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = 'status-message ' + type;
+            statusEl.style.display = 'block';
+            
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
