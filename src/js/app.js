@@ -106,6 +106,10 @@ function getCurrentLocation(callback) {
 function findNearbyStops(lat, lon, callback) {
   console.log('Finding stops near: ' + lat + ', ' + lon);
   
+  // Note: This fetches all 4,111+ stops from the API to find nearby ones.
+  // This is a known limitation as the API doesn't support coordinate-based search.
+  // Future improvement: Implement client-side caching of stop data to avoid
+  // repeated downloads, or filter by province/region to reduce data size.
   var url = 'http://v0.ovapi.nl/stopareacode';
   
   ajax({
@@ -119,22 +123,19 @@ function findNearbyStops(lat, lon, callback) {
     var nearbyStops = [];
     
     for (var stopCode in data) {
-      if (data.hasOwnProperty(stopCode) && data[stopCode]) {
+      if (data[stopCode] && data[stopCode].Latitude && data[stopCode].Longitude) {
         var stop = data[stopCode];
+        var distance = calculateDistance(lat, lon, 
+          parseFloat(stop.Latitude), 
+          parseFloat(stop.Longitude)
+        );
         
-        if (stop.Latitude && stop.Longitude) {
-          var distance = calculateDistance(lat, lon, 
-            parseFloat(stop.Latitude), 
-            parseFloat(stop.Longitude)
-          );
-          
-          if (distance < 0.5) { // Within 500m
-            nearbyStops.push({
-              code: stopCode,
-              name: stop.TimingPointName || stopCode,
-              distance: distance
-            });
-          }
+        if (distance < 0.5) { // Within 500m
+          nearbyStops.push({
+            code: stopCode,
+            name: stop.TimingPointName || stopCode,
+            distance: distance
+          });
         }
       }
     }
@@ -209,9 +210,11 @@ function fetchDepartures(stopCode, stopName, callback) {
                 
                 if (departureTime) {
                   var delay = 0;
+                  // Calculate delay only if both times are present
                   if (pass.ExpectedDepartureTime && pass.TargetDepartureTime) {
-                    delay = Math.round((new Date(pass.ExpectedDepartureTime) - 
-                                       new Date(pass.TargetDepartureTime)) / 60000);
+                    var expectedMs = Date.parse(pass.ExpectedDepartureTime);
+                    var targetMs = Date.parse(pass.TargetDepartureTime);
+                    delay = Math.round((expectedMs - targetMs) / 60000);
                   }
                   
                   departures.push({
