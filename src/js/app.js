@@ -123,8 +123,8 @@ function findNearbyStops(lat, lon, callback) {
     var nearbyStops = [];
     
     for (var stopCode in data) {
-      if (data[stopCode] && data[stopCode].Latitude && data[stopCode].Longitude) {
-        var stop = data[stopCode];
+      var stop = data[stopCode];
+      if (stop && stop.Latitude && stop.Longitude) {
         var distance = calculateDistance(lat, lon, 
           parseFloat(stop.Latitude), 
           parseFloat(stop.Longitude)
@@ -193,39 +193,39 @@ function fetchDepartures(stopCode, stopName, callback) {
       
       // Iterate through timing points at this stop
       for (var timingPointCode in stopData) {
-        if (stopData.hasOwnProperty(timingPointCode)) {
-          var timingPoint = stopData[timingPointCode];
+        var timingPoint = stopData[timingPointCode];
+        
+        // Check if this timing point has passes (departures)
+        if (timingPoint && timingPoint.Passes) {
+          console.log('Found passes in timing point: ' + timingPointCode);
           
-          // Check if this timing point has passes (departures)
-          if (timingPoint && timingPoint.Passes) {
-            console.log('Found passes in timing point: ' + timingPointCode);
+          // Iterate through passes (departures)
+          for (var passId in timingPoint.Passes) {
+            var pass = timingPoint.Passes[passId];
             
-            // Iterate through passes (departures)
-            for (var passId in timingPoint.Passes) {
-              if (timingPoint.Passes.hasOwnProperty(passId)) {
-                var pass = timingPoint.Passes[passId];
-                
-                // Use ExpectedDepartureTime if available, otherwise TargetDepartureTime
-                var departureTime = pass.ExpectedDepartureTime || pass.TargetDepartureTime;
-                
-                if (departureTime) {
-                  var delay = 0;
-                  // Calculate delay only if both times are present
-                  if (pass.ExpectedDepartureTime && pass.TargetDepartureTime) {
-                    var expectedMs = Date.parse(pass.ExpectedDepartureTime);
-                    var targetMs = Date.parse(pass.TargetDepartureTime);
+            if (pass) {
+              // Use ExpectedDepartureTime if available, otherwise TargetDepartureTime
+              var departureTime = pass.ExpectedDepartureTime || pass.TargetDepartureTime;
+              
+              if (departureTime) {
+                var delay = 0;
+                // Calculate delay only if both times are present and valid
+                if (pass.ExpectedDepartureTime && pass.TargetDepartureTime) {
+                  var expectedMs = Date.parse(pass.ExpectedDepartureTime);
+                  var targetMs = Date.parse(pass.TargetDepartureTime);
+                  if (!isNaN(expectedMs) && !isNaN(targetMs)) {
                     delay = Math.round((expectedMs - targetMs) / 60000);
                   }
-                  
-                  departures.push({
-                    line: pass.LinePublicNumber || 'Unknown',
-                    destination: pass.DestinationName50 || 'Unknown',
-                    time: departureTime,
-                    delay: delay,
-                    type: pass.TransportType || 'BUS',
-                    platform: timingPointCode
-                  });
                 }
+                
+                departures.push({
+                  line: pass.LinePublicNumber || 'Unknown',
+                  destination: pass.DestinationName50 || 'Unknown',
+                  time: departureTime,
+                  delay: delay,
+                  type: pass.TransportType || 'BUS',
+                  platform: timingPointCode
+                });
               }
             }
           }
