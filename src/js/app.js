@@ -133,7 +133,7 @@ function findNearbyStops(lat, lon, callback) {
     console.log('Received stop data from OV API');
     console.log('Data keys: ' + Object.keys(data).length);
     
-    // Find closest stops within 500m
+    // Find closest stops within 1km
     var nearbyStops = [];
     var checkedAreas = 0;
     var foundStops = 0;
@@ -144,36 +144,25 @@ function findNearbyStops(lat, lon, callback) {
         checkedAreas++;
         var stopArea = data[stopAreaCode];
         
-        // Each stop area contains timing points
-        for (var timingPointCode in stopArea) {
-          if (stopArea.hasOwnProperty(timingPointCode)) {
-            var timingPoint = stopArea[timingPointCode];
-            
-            // Check if this timing point has Stop data with coordinates
-            if (timingPoint && timingPoint.Stop) {
-              var stop = timingPoint.Stop;
-              
-              if (stop.Latitude && stop.Longitude) {
-                foundStops++;
-                var distance = calculateDistance(lat, lon, 
-                  parseFloat(stop.Latitude), 
-                  parseFloat(stop.Longitude)
-                );
-                
-                // Log first few for debugging
-                if (foundStops <= 5) {
-                  console.log('Check stop ' + foundStops + ': ' + stop.TimingPointName + ' @ ' + distance.toFixed(3) + 'km');
-                }
-                
-                if (distance < 0.5) { // Within 500m
-                  nearbyStops.push({
-                    code: stopAreaCode,
-                    name: stop.TimingPointName || stopAreaCode,
-                    distance: distance
-                  });
-                }
-              }
-            }
+        // Check if this stop area has coordinates directly
+        if (stopArea && stopArea.Latitude && stopArea.Longitude) {
+          foundStops++;
+          var distance = calculateDistance(lat, lon, 
+            parseFloat(stopArea.Latitude), 
+            parseFloat(stopArea.Longitude)
+          );
+          
+          // Log first few for debugging
+          if (foundStops <= 5) {
+            console.log('Check stop ' + foundStops + ': ' + stopArea.TimingPointName + ' @ ' + distance.toFixed(3) + 'km');
+          }
+          
+          if (distance < 10) { // Within 10km
+            nearbyStops.push({
+              code: stopAreaCode,
+              name: stopArea.TimingPointName || stopAreaCode,
+              distance: distance
+            });
           }
         }
       }
@@ -186,13 +175,13 @@ function findNearbyStops(lat, lon, callback) {
       return a.distance - b.distance;
     });
     
-    console.log('Found ' + nearbyStops.length + ' nearby stops within 500m');
+    console.log('Found ' + nearbyStops.length + ' nearby stops within 10km');
     
     if (nearbyStops.length === 0) {
       callback('No stops found nearby');
     } else {
-      console.log('Returning top 5: ' + nearbyStops.slice(0, 5).map(function(s) { return s.name; }).join(', '));
-      callback(null, nearbyStops.slice(0, 5)); // Return top 5
+      console.log('Returning top 10: ' + nearbyStops.slice(0, 10).map(function(s) { return s.name; }).join(', '));
+      callback(null, nearbyStops.slice(0, 10)); // Return top 10
     }
   }, function(error, status, request) {
     console.log('OV API error: ' + JSON.stringify(error));
@@ -254,13 +243,23 @@ function fetchDepartures(stopCode, stopName, callback) {
         
         // Check if this timing point has passes (departures)
         if (timingPoint && timingPoint.Passes) {
-          console.log('Found passes in timing point: ' + timingPointCode);
+          var passCount = Object.keys(timingPoint.Passes).length;
+          console.log('Found ' + passCount + ' passes in timing point: ' + timingPointCode);
           
           // Iterate through passes (departures)
+          var processedPasses = 0;
           for (var passId in timingPoint.Passes) {
             var pass = timingPoint.Passes[passId];
+            processedPasses++;
             
             if (pass) {
+              // Log first pass to see structure
+              if (processedPasses === 1) {
+                console.log('First pass keys: ' + Object.keys(pass).join(', '));
+                console.log('ExpectedDepartureTime: ' + pass.ExpectedDepartureTime);
+                console.log('TargetDepartureTime: ' + pass.TargetDepartureTime);
+              }
+              
               // Use ExpectedDepartureTime if available, otherwise TargetDepartureTime
               var departureTime = pass.ExpectedDepartureTime || pass.TargetDepartureTime;
               
@@ -387,6 +386,30 @@ function showDepartures(stopName, departures, mainMenu, loadingCard) {
   departureMenu.show();
 }
 
+// Try to fetch departures from multiple stops until we find one with departures
+function fetchDeparturesFromStops(stops, currentIndex, callback) {
+  if (currentIndex >= stops.length) {
+    var now = new Date();
+    var timeStr = now.getHours() + ':' + (now.getMinutes() < 10 ? '0' : '') + now.getMinutes();
+    callback('No departures found at ' + stops.length + ' nearby stops. This may be due to weekend/holiday schedule or off-peak hours (' + timeStr + ').');
+    return;
+  }
+  
+  var stop = stops[currentIndex];
+  console.log('Trying stop ' + (currentIndex + 1) + '/' + stops.length + ': ' + stop.name);
+  
+  fetchDepartures(stop.code, stop.name, function(err, departures) {
+    if (err) {
+      // Try next stop
+      console.log('No departures at ' + stop.name + ', trying next stop...');
+      fetchDeparturesFromStops(stops, currentIndex + 1, callback);
+    } else {
+      // Found departures!
+      callback(null, departures, stop.name);
+    }
+  });
+}
+
 // Show main menu with stops
 function showMainMenu() {
   if (!appSettings.stops || appSettings.stops.length === 0) {
@@ -406,6 +429,14 @@ function showMainMenu() {
   
   console.log('Building menu with ' + appSettings.stops.length + ' stops');
   
+  // Add GPS option first
+  var gpsItem = {
+    title: String('Current Location'),
+    subtitle: String('Use GPS')
+  };
+  console.log('Adding GPS item first: ' + JSON.stringify(gpsItem));
+  menuItems.push(gpsItem);
+  
   // Sort stops by order
   var sortedStops = appSettings.stops.slice().sort(function(a, b) {
     return (a.order || 0) - (b.order || 0);
@@ -423,14 +454,6 @@ function showMainMenu() {
     console.log('Menu item: ' + JSON.stringify(item));
     menuItems.push(item);
   });
-  
-  // Add GPS option if not already in list
-  var gpsItem = {
-    title: String('📍 Current Location'),
-    subtitle: String('Use GPS')
-  };
-  console.log('Adding GPS item: ' + JSON.stringify(gpsItem));
-  menuItems.push(gpsItem);
   
   console.log('Total menu items: ' + menuItems.length);
   
@@ -455,7 +478,7 @@ function showMainMenu() {
     console.log('Total sorted stops: ' + sortedStops.length);
     
     var itemIndex = e.itemIndex;
-    var isGPS = (e.item.title === '📍 Current Location');
+    var isGPS = (e.item.title === 'Current Location');
     console.log('Is GPS selection: ' + isGPS);
     
     // Show loading card
@@ -485,21 +508,22 @@ function showMainMenu() {
           
           loadingCard.body('Loading departures...');
           
-          // Get departures for closest stop
-          fetchDepartures(stops[0].code, stops[0].name, function(err, departures) {
+          // Try to get departures from multiple stops until we find one with data
+          fetchDeparturesFromStops(stops, 0, function(err, departures, stopName) {
             if (err) {
               showError('Departure Error', err);
               return;
             }
             
-            showDepartures(stops[0].name, departures, mainMenu, loadingCard);
+            showDepartures(stopName, departures, mainMenu, loadingCard);
           });
         });
       });
     } else {
-      // Use saved stop
-      console.log('Using saved stop at index: ' + itemIndex);
-      var stop = sortedStops[itemIndex];
+      // Use saved stop (adjust index since GPS is now at position 0)
+      var stopIndex = itemIndex - 1;
+      console.log('Using saved stop at adjusted index: ' + stopIndex);
+      var stop = sortedStops[stopIndex];
       console.log('Stop object: ' + JSON.stringify(stop));
       console.log('Stop has stopCode: ' + (stop.stopCode ? 'YES' : 'NO'));
       console.log('Stop has lat/lon: ' + (stop.lat && stop.lon ? 'YES' : 'NO'));
