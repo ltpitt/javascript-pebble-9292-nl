@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>NextRide Configuration</title>
+    <title>NextRide - My Stops</title>
     <style>
         * {
             box-sizing: border-box;
@@ -80,7 +80,7 @@
             margin-top: 5px;
         }
         
-        .destination-item {
+        .stop-item {
             background: #f8f9fa;
             border: 2px solid #e9ecef;
             border-radius: 8px;
@@ -89,25 +89,25 @@
             position: relative;
         }
         
-        .destination-item.editing {
+        .stop-item.editing {
             border-color: #4A90E2;
             background: #f0f7ff;
         }
         
-        .destination-header {
+        .stop-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 10px;
         }
         
-        .destination-name {
+        .stop-name {
             font-weight: 600;
             font-size: 16px;
             color: #333;
         }
         
-        .destination-order {
+        .stop-order {
             background: #4A90E2;
             color: white;
             padding: 4px 12px;
@@ -116,13 +116,13 @@
             font-weight: 600;
         }
         
-        .destination-address {
+        .stop-address {
             color: #666;
             font-size: 14px;
             margin-bottom: 10px;
         }
         
-        .destination-actions {
+        .stop-actions {
             display: flex;
             gap: 8px;
             flex-wrap: wrap;
@@ -277,6 +277,103 @@
             margin-bottom: 0;
         }
         
+        .stop-search-box {
+            background: #f0f7ff;
+            border: 2px solid #4A90E2;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .stop-search-box h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        
+        .search-inputs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .search-inputs input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .btn-search {
+            padding: 10px 20px;
+            background: #4A90E2;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+        
+        .btn-search:hover {
+            background: #357ABD;
+        }
+        
+        .btn-search:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .search-results {
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        
+        .search-result-item {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .search-result-item:hover {
+            border-color: #4A90E2;
+            background: #f8fbff;
+            transform: translateX(2px);
+        }
+        
+        .search-result-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+        }
+        
+        .search-result-code {
+            font-size: 12px;
+            color: #888;
+            font-family: monospace;
+        }
+        
+        .search-loading {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+        }
+        
+        .search-error {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 6px;
+            margin-top: 10px;
+        }
+        
         .autocomplete-results {
             position: absolute;
             background: white;
@@ -315,7 +412,7 @@
             margin-bottom: 10px;
         }
         
-        .destination-list {
+        .stop-list {
             margin-bottom: 20px;
         }
     </style>
@@ -324,39 +421,50 @@
     <div class="container">
         <div class="header">
             <h1>🚌 NextRide</h1>
-            <p>Manage your transit destinations</p>
+            <p>Manage your favorite bus stops</p>
         </div>
         
         <div class="content">
             <div id="status" class="status-message"></div>
             
             <div class="form-group">
-                <label>Default Destination</label>
-                <select id="default-destination">
+                <label>Default Stop</label>
+                <select id="default-stop">
                     <option value="">Choose default...</option>
                     <option value="gps">Current Location (GPS)</option>
                 </select>
-                <div class="help-text">First destination shown on your watch</div>
+                <div class="help-text">First stop shown on your watch</div>
             </div>
             
-            <div class="destination-list" id="destination-list">
+            <div class="stop-list" id="stop-list">
                 <div class="empty-state">
                     <div class="empty-state-icon">📍</div>
-                    <p>No destinations yet</p>
-                    <p style="font-size: 12px; margin-top: 5px;">Add your first destination below</p>
+                    <p>No stops saved yet</p>
+                    <p style="font-size: 12px; margin-top: 5px;">Search and add your first stop below</p>
                 </div>
             </div>
             
-            <button class="btn-add" id="add-destination">+ Add Destination</button>
+            <!-- Stop Search Feature -->
+            <div class="stop-search-box">
+                <h3>🔍 Find Your Bus Stop</h3>
+                <div class="search-inputs">
+                    <input type="text" id="search-city" placeholder="City (e.g., Haarlem)" />
+                    <input type="text" id="search-stop" placeholder="Stop name (e.g., Byzantiumstraat)" />
+                    <button class="btn-search" id="btn-search-stops">Search</button>
+                </div>
+                <div id="search-results"></div>
+            </div>
             
-            <button class="btn-save-all" id="save-all">Save to Watch</button>
+            <button class="btn-add" id="add-stop">+ Add Stop</button>
+            
+            <button class="btn-save-all" id="save-settings">Done</button>
         </div>
     </div>
 
     <script>
         // State management
-        let destinations = [];
-        let defaultDestination = '';
+        let stops = [];
+        let defaultStop = '';
         let editingId = null;
         
         // Load settings on page load
@@ -365,30 +473,30 @@
             if (savedSettings) {
                 try {
                     const settings = JSON.parse(savedSettings);
-                    destinations = settings.destinations || [];
-                    defaultDestination = settings.defaultDestination || '';
+                    stops = settings.stops || [];
+                    defaultStop = settings.defaultStop || '';
                     
-                    // Add default destinations if none exist
-                    if (destinations.length === 0) {
-                        addDefaultDestinations();
+                    // Add default stops if none exist
+                    if (stops.length === 0) {
+                        addDefaultStops();
                     }
                     
-                    renderDestinations();
+                    renderStops();
                     updateDefaultDropdown();
                 } catch (e) {
                     console.error('Failed to load settings:', e);
-                    addDefaultDestinations();
-                    renderDestinations();
+                    addDefaultStops();
+                    renderStops();
                 }
             } else {
                 // First time - add Home and Office as defaults
-                addDefaultDestinations();
-                renderDestinations();
+                addDefaultStops();
+                renderStops();
             }
         });
         
-        function addDefaultDestinations() {
-            destinations = [
+        function addDefaultStops() {
+            stops = [
                 {
                     id: generateId(),
                     name: 'Home',
@@ -404,57 +512,79 @@
             return 'dest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
         }
         
-        function renderDestinations() {
-            const listEl = document.getElementById('destination-list');
+        // Auto-save settings to localStorage and watch
+        function autoSave() {
+            const settings = {
+                defaultStop: defaultStop,
+                stops: stops
+            };
             
-            if (destinations.length === 0) {
+            // Store in localStorage for persistence
+            localStorage.setItem('nextride-settings', JSON.stringify(settings));
+            
+            // Send to watch immediately using Pebble.js protocol
+            const encodedSettings = encodeURIComponent(JSON.stringify(settings));
+            
+            // Use postMessage to send to Pebble without closing the page
+            if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.pebbleKit) {
+                window.webkit.messageHandlers.pebbleKit.postMessage({
+                    type: 'config',
+                    data: settings
+                });
+            }
+        }
+        
+        function renderStops() {
+            const listEl = document.getElementById('stop-list');
+            
+            if (stops.length === 0) {
                 listEl.innerHTML = `
                     <div class="empty-state">
                         <div class="empty-state-icon">📍</div>
-                        <p>No destinations yet</p>
-                        <p style="font-size: 12px; margin-top: 5px;">Add your first destination below</p>
+                        <p>No stops yet</p>
+                        <p style="font-size: 12px; margin-top: 5px;">Add your favorite stops using the search below</p>
                     </div>
                 `;
                 return;
             }
             
             // Sort by order
-            const sorted = [...destinations].sort((a, b) => a.order - b.order);
+            const sorted = [...stops].sort((a, b) => a.order - b.order);
             
-            listEl.innerHTML = sorted.map(dest => `
-                <div class="destination-item ${editingId === dest.id ? 'editing' : ''}" data-id="${dest.id}">
-                    <div class="destination-header">
-                        <div class="destination-name">${dest.name || 'Unnamed'}</div>
-                        <div class="destination-order">Order: ${dest.order}</div>
+            listEl.innerHTML = sorted.map(stop => `
+                <div class="stop-item ${editingId === stop.id ? 'editing' : ''}" data-id="${stop.id}">
+                    <div class="stop-header">
+                        <div class="stop-name">${stop.name || 'Unnamed'}</div>
+                        <div class="stop-order">Order: ${stop.order}</div>
                     </div>
-                    <div class="destination-address">${dest.address || 'No address set'}</div>
-                    <div class="destination-actions">
-                        <button class="btn btn-primary btn-small" onclick="editDestination('${dest.id}')">Edit</button>
-                        <button class="btn btn-secondary btn-small" onclick="moveUp('${dest.id}')">↑</button>
-                        <button class="btn btn-secondary btn-small" onclick="moveDown('${dest.id}')">↓</button>
-                        <button class="btn btn-danger btn-small" onclick="deleteDestination('${dest.id}')">Delete</button>
+                    <div class="stop-address">${stop.address || 'No address set'}</div>
+                    <div class="stop-actions">
+                        <button class="btn btn-primary btn-small" onclick="editStop('${stop.id}')">Edit</button>
+                        <button class="btn btn-secondary btn-small" onclick="moveUp('${stop.id}')">↑</button>
+                        <button class="btn btn-secondary btn-small" onclick="moveDown('${stop.id}')">↓</button>
+                        <button class="btn btn-danger btn-small" onclick="deleteStop('${stop.id}')">Delete</button>
                     </div>
-                    <div class="edit-form ${editingId === dest.id ? 'active' : ''}" id="edit-${dest.id}">
+                    <div class="edit-form ${editingId === stop.id ? 'active' : ''}" id="edit-${stop.id}">
                         <div class="form-field">
                             <label>Name</label>
-                            <input type="text" placeholder="e.g., Home, Office, Gym" value="${dest.name}" id="name-${dest.id}">
+                            <input type="text" placeholder="e.g., Home, Work, School" value="${stop.name}" id="name-${stop.id}">
                         </div>
                         <div class="form-field" style="position: relative;">
                             <label>Address</label>
                             <input type="text" 
                                    placeholder="Start typing address..." 
-                                   value="${dest.address}" 
-                                   id="address-${dest.id}"
-                                   oninput="handleAddressInput('${dest.id}')"
-                                   onfocus="handleAddressInput('${dest.id}')"
-                                   onblur="setTimeout(() => hideAutocomplete('${dest.id}'), 200)">
-                            <div id="autocomplete-${dest.id}" class="autocomplete-results" style="display: none;"></div>
+                                   value="${stop.address}" 
+                                   id="address-${stop.id}"
+                                   oninput="handleAddressInput('${stop.id}')"
+                                   onfocus="handleAddressInput('${stop.id}')"
+                                   onblur="setTimeout(() => hideAutocomplete('${stop.id}'), 200)">
+                            <div id="autocomplete-${stop.id}" class="autocomplete-results" style="display: none;"></div>
                         </div>
                         <div class="form-field">
-                            <button class="btn btn-gps btn-small" onclick="useCurrentLocation('${dest.id}')">📍 Use Current Location</button>
+                            <button class="btn btn-gps btn-small" onclick="useCurrentLocation('${stop.id}')">📍 Use Current Location</button>
                         </div>
                         <div style="display: flex; gap: 8px; margin-top: 15px;">
-                            <button class="btn btn-success" onclick="saveEdit('${dest.id}')">Save</button>
+                            <button class="btn btn-success" onclick="saveEdit('${stop.id}')">Save</button>
                             <button class="btn btn-secondary" onclick="cancelEdit()">Cancel</button>
                         </div>
                     </div>
@@ -463,24 +593,24 @@
         }
         
         function updateDefaultDropdown() {
-            const select = document.getElementById('default-destination');
-            const sorted = [...destinations].sort((a, b) => a.order - b.order);
+            const select = document.getElementById('default-stop');
+            const sorted = [...stops].sort((a, b) => a.order - b.order);
             
             select.innerHTML = '<option value="">Choose default...</option>' +
-                '<option value="gps"' + (defaultDestination === 'gps' ? ' selected' : '') + '>Current Location (GPS)</option>' +
-                sorted.map(dest => 
-                    `<option value="${dest.id}" ${dest.id === defaultDestination ? 'selected' : ''}>${dest.name || 'Unnamed'}</option>`
+                '<option value="gps"' + (defaultStop === 'gps' ? ' selected' : '') + '>Current Location (GPS)</option>' +
+                sorted.map(stop => 
+                    `<option value="${stop.id}" ${stop.id === defaultStop ? 'selected' : ''}>${stop.name || 'Unnamed'}</option>`
                 ).join('');
         }
         
-        function editDestination(id) {
+        function editStop(id) {
             editingId = id;
-            renderDestinations();
+            renderStops();
         }
         
         function cancelEdit() {
             editingId = null;
-            renderDestinations();
+            renderStops();
         }
         
         function saveEdit(id) {
@@ -500,56 +630,60 @@
                 return;
             }
             
-            const dest = destinations.find(d => d.id === id);
-            if (dest) {
-                dest.name = name;
-                dest.address = address;
+            const stop = stops.find(d => d.id === id);
+            if (stop) {
+                stop.name = name;
+                stop.address = address;
             }
             
             editingId = null;
-            renderDestinations();
+            renderStops();
             updateDefaultDropdown();
-            showStatus('Destination updated', 'success');
+            autoSave();
+            showStatus('Stop updated', 'success');
         }
         
-        function deleteDestination(id) {
-            if (!confirm('Delete this destination?')) return;
+        function deleteStop(id) {
+            if (!confirm('Delete this stop?')) return;
             
-            destinations = destinations.filter(d => d.id !== id);
-            if (defaultDestination === id) {
-                defaultDestination = '';
+            stops = stops.filter(d => d.id !== id);
+            if (defaultStop === id) {
+                defaultStop = '';
             }
             
-            renderDestinations();
+            renderStops();
             updateDefaultDropdown();
-            showStatus('Destination deleted', 'success');
+            autoSave();
+            showStatus('Stop deleted', 'success');
         }
         
         function moveUp(id) {
-            const dest = destinations.find(d => d.id === id);
-            if (!dest || dest.order <= 1) return;
+            const stop = stops.find(d => d.id === id);
+            if (!stop || stop.order === 0) return;
             
-            const prevDest = destinations.find(d => d.order === dest.order - 1);
-            if (prevDest) {
-                prevDest.order++;
+            const prevStop = stops.find(d => d.order === stop.order - 1);
+            if (prevStop) {
+                prevStop.order++;
             }
-            dest.order--;
+            stop.order--;
             
-            renderDestinations();
+            renderStops();
+            autoSave();
             showStatus('Order updated', 'success');
         }
         
         function moveDown(id) {
-            const dest = destinations.find(d => d.id === id);
-            if (!dest) return;
+            const stop = stops.find(d => d.id === id);
+            if (!stop) return;
             
-            const nextDest = destinations.find(d => d.order === dest.order + 1);
-            if (nextDest) {
-                nextDest.order--;
+            const nextStop = stops.find(d => d.order === stop.order + 1);
+            if (nextStop) {
+                nextStop.order--;
             }
-            dest.order++;
+            stop.order++;
             
-            renderDestinations();
+            renderStops();
+            autoSave();
             showStatus('Order updated', 'success');
         }
         
@@ -605,12 +739,12 @@
         
         function selectAddress(id, lat, lon, address) {
             const addressInput = document.getElementById(`address-${id}`);
-            const dest = destinations.find(d => d.id === id);
+            const stop = stops.find(d => d.id === id);
             
-            if (dest) {
+            if (stop) {
                 addressInput.value = address;
-                dest.lat = parseFloat(lat);
-                dest.lon = parseFloat(lon);
+                stop.lat = parseFloat(lat);
+                stop.lon = parseFloat(lon);
             }
             
             hideAutocomplete(id);
@@ -625,9 +759,9 @@
         
         function useCurrentLocation(id) {
             const addressInput = document.getElementById(`address-${id}`);
-            const dest = destinations.find(d => d.id === id);
+            const stop = stops.find(d => d.id === id);
             
-            if (!dest) return;
+            if (!stop) return;
             
             showStatus('Getting your location...', 'success');
             
@@ -650,8 +784,8 @@
                         .then(data => {
                             if (data.display_name) {
                                 addressInput.value = data.display_name;
-                                dest.lat = lat;
-                                dest.lon = lon;
+                                stop.lat = lat;
+                                stop.lon = lon;
                                 showStatus('Address found!', 'success');
                             } else {
                                 showStatus('Could not find address for this location', 'error');
@@ -661,8 +795,8 @@
                             console.error('Geocoding error:', error);
                             showStatus('Failed to get address. Using coordinates.', 'error');
                             addressInput.value = `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
-                            dest.lat = lat;
-                            dest.lon = lon;
+                            stop.lat = lat;
+                            stop.lon = lon;
                         });
                 },
                 // Error callback
@@ -692,13 +826,13 @@
             );
         }
         
-        // Add new destination
-        document.getElementById('add-destination').addEventListener('click', () => {
-            const maxOrder = destinations.length > 0 
-                ? Math.max(...destinations.map(d => d.order)) 
+        // Add new stop
+        document.getElementById('add-stop').addEventListener('click', () => {
+            const maxOrder = stops.length > 0 
+                ? Math.max(...stops.map(d => d.order))
                 : 0;
             
-            const newDest = {
+            const newStop = {
                 id: generateId(),
                 name: '',
                 address: '',
@@ -707,29 +841,24 @@
                 lon: null
             };
             
-            destinations.push(newDest);
-            editingId = newDest.id;
-            renderDestinations();
+            stops.push(newStop);
+            editingId = newStop.id;
+            renderStops();
             updateDefaultDropdown();
+            autoSave();
         });
         
-        // Update default destination
-        document.getElementById('default-destination').addEventListener('change', (e) => {
-            defaultDestination = e.target.value;
+        // Update default stop
+        document.getElementById('default-stop').addEventListener('change', (e) => {
+            defaultStop = e.target.value;
+            autoSave();
         });
         
-        // Save all to watch
-        document.getElementById('save-all').addEventListener('click', () => {
-            // Validate all destinations have name and address
-            const incomplete = destinations.filter(d => !d.name || !d.address);
-            if (incomplete.length > 0) {
-                showStatus('All destinations must have a name and address', 'error');
-                return;
-            }
-            
+        // Done button - send settings to watch and close
+        document.getElementById('save-settings').addEventListener('click', () => {
             const settings = {
-                defaultDestination: defaultDestination,
-                destinations: destinations
+                defaultStop: defaultStop,
+                stops: stops
             };
             
             // Store in localStorage for persistence
@@ -748,6 +877,141 @@
             
             setTimeout(() => {
                 statusEl.style.display = 'none';
+            }, 3000);
+        }
+        
+        // Stop Search Feature
+        let stopDataCache = null;
+        
+        document.getElementById('btn-search-stops').addEventListener('click', searchStops);
+        
+        // Allow Enter key to trigger search
+        document.getElementById('search-city').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchStops();
+        });
+        document.getElementById('search-stop').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchStops();
+        });
+        
+        async function searchStops() {
+            const city = document.getElementById('search-city').value.trim();
+            const stopName = document.getElementById('search-stop').value.trim().toLowerCase();
+            const resultsDiv = document.getElementById('search-results');
+            const searchBtn = document.getElementById('btn-search-stops');
+            
+            if (!city) {
+                resultsDiv.innerHTML = '<div class="search-error">Please enter a city name</div>';
+                return;
+            }
+            
+            // Disable button and show loading
+            searchBtn.disabled = true;
+            searchBtn.textContent = 'Searching...';
+            resultsDiv.innerHTML = '<div class="search-loading">🔄 Searching for stops...</div>';
+            
+            try {
+                // Fetch stop data if not cached (OV API - 4,111 timing points with real-time data)
+                if (!stopDataCache) {
+                    const response = await fetch('http://v0.ovapi.nl/stopareacode');
+                    stopDataCache = await response.json();
+                }
+                
+                // Search through stops
+                const results = [];
+                for (const [code, stop] of Object.entries(stopDataCache)) {
+                    if (typeof stop === 'object' && stop !== null) {
+                        const town = stop.TimingPointTown || '';
+                        const name = stop.TimingPointName || '';
+                        
+                        // Match city
+                        if (city.toLowerCase() === town.toLowerCase() || town.toLowerCase().includes(city.toLowerCase())) {
+                            // If stop name provided, filter by that too
+                            if (!stopName || name.toLowerCase().includes(stopName)) {
+                                results.push({
+                                    code: code,
+                                    name: name,
+                                    town: town,
+                                    lat: stop.Latitude,
+                                    lon: stop.Longitude
+                                });
+                            }
+                        }
+                    }
+                }
+                
+                // Display results
+                if (results.length === 0) {
+                    resultsDiv.innerHTML = `
+                        <div class="search-error">
+                            <strong>No stops found</strong><br>
+                            <small style="display: block; margin-top: 8px; line-height: 1.4;">
+                                Only major stops with real-time tracking are available (~4,111 stops).<br>
+                                Small street-level stops may not be in the database.<br>
+                                Try nearby major stops like stations or main bus stops.<br>
+                                <a href="https://ltpitt.github.io/javascript-pebble-9292-nl/gtfs-guide.html" target="_blank" style="color: #3498db; text-decoration: underline; margin-top: 8px; display: inline-block;">
+                                    📖 How to find stops not in the database
+                                </a>
+                            </small>
+                        </div>`;
+                } else {
+                    // Limit to 20 results
+                    const displayResults = results.slice(0, 20);
+                    resultsDiv.innerHTML = '<div class="search-results">' + 
+                        displayResults.map(result => `
+                            <div class="search-result-item" onclick="selectStop('${result.code}', '${result.name.replace(/'/g, "\\'")}', ${result.lat}, ${result.lon})">
+                                <div class="search-result-name">${result.name}</div>
+                                <div class="search-result-code">Code: ${result.code}</div>
+                            </div>
+                        `).join('') +
+                        '</div>';
+                    
+                    if (results.length > 20) {
+                        resultsDiv.innerHTML += `<div style="text-align: center; color: #888; padding: 10px; font-size: 12px;">Showing 20 of ${results.length} results. Be more specific to narrow down.</div>`;
+                    }
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                resultsDiv.innerHTML = '<div class="search-error">Search failed. Please try again.</div>';
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = 'Search';
+            }
+        }
+        
+        function selectStop(code, name, lat, lon) {
+            // Create new stop with the selected stop
+            const maxOrder = stops.length > 0 
+                ? Math.max(...stops.map(d => d.order)) 
+                : 0;
+            
+            const newStop = {
+                id: generateId(),
+                name: name,
+                address: name,
+                order: maxOrder + 1,
+                lat: parseFloat(lat),
+                lon: parseFloat(lon),
+                stopCode: code  // Store the stop code!
+            };
+            
+            stops.push(newStop);
+            renderStops();
+            updateDefaultDropdown();
+            autoSave();
+            
+            // Keep search results visible but show success message
+            const successMsg = document.createElement('div');
+            successMsg.style.cssText = 'background: #d4edda; color: #155724; padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #c3e6cb;';
+            successMsg.innerHTML = `✅ Added: <strong>${name}</strong> (${code})`;
+            
+            const resultsDiv = document.getElementById('search-results');
+            resultsDiv.insertBefore(successMsg, resultsDiv.firstChild);
+            
+            // Remove success message after 3 seconds
+            setTimeout(() => {
+                successMsg.style.transition = 'opacity 0.5s';
+                successMsg.style.opacity = '0';
+                setTimeout(() => successMsg.remove(), 500);
             }, 3000);
         }
     </script>

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finding Bus Stops Not in Real-Time API</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+        }
+        .info-box {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .error-box {
+            background: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+        pre {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        pre code {
+            background: transparent;
+            color: inherit;
+            padding: 0;
+        }
+        .step {
+            background: #f8f9fa;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+        }
+        .step-number {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            width: 30px;
+            height: 30px;
+            line-height: 30px;
+            text-align: center;
+            border-radius: 50%;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background: #3498db;
+            color: white;
+        }
+        tr:hover {
+            background: #f5f5f5;
+        }
+        a {
+            color: #3498db;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Finding Bus Stops Not in Real-Time API</h1>
+        
+        <div class="warning-box">
+            <strong>⚠️ Why isn't my stop showing up?</strong><br>
+            The NextRide app uses real-time data which is only available for <strong>~4,111 major stops</strong> (timing points).<br>
+            Small street-level stops don't have real-time tracking equipment.
+        </div>
+
+        <h2>What You Can Do</h2>
+
+        <div class="info-box">
+            <strong>✅ Option 1: Use a nearby major stop</strong><br>
+            Search for main stations or larger bus stops nearby:
+            <ul>
+                <li><strong>Haarlem Centraal</strong> - Main train station</li>
+                <li><strong>Byzantiumstraat</strong> - Major bus stop with multiple lines</li>
+                <li><strong>Nassaulaan</strong> - Another major stop nearby</li>
+            </ul>
+        </div>
+
+        <h2>🗂️ Option 2: Find Your Stop in GTFS Data</h2>
+
+        <div class="info-box">
+            <strong>ℹ️ What is GTFS?</strong><br>
+            GTFS (General Transit Feed Specification) contains <strong>ALL bus stops</strong> in Netherlands with scheduled timetables, 
+            but requires manual lookup.
+        </div>
+
+        <div class="step">
+            <span class="step-number">1</span>
+            <strong>Download GTFS Data</strong><br>
+            Open Terminal (Mac) or Command Prompt (Windows) and run:
+            <pre><code>curl "http://gtfs.ovapi.nl/nl/gtfs-nl.zip" -o gtfs-nl.zip
+unzip gtfs-nl.zip</code></pre>
+            <small>This downloads a ~300MB zip file containing all Dutch transit data.</small>
+        </div>
+
+        <div class="step">
+            <span class="step-number">2</span>
+            <strong>Search for Your Stop</strong><br>
+            Replace <code>YOUR_STOP_NAME</code> with your stop name:<br>
+            <strong>Mac/Linux:</strong>
+            <pre><code>grep -i "YOUR_STOP_NAME" stops.txt</code></pre>
+            <strong>Windows (PowerShell):</strong>
+            <pre><code>Select-String -Pattern "YOUR_STOP_NAME" -Path stops.txt -CaseSensitive:$false</code></pre>
+            <strong>Example:</strong> Search for "Kerkstraat" in Amsterdam:
+            <pre><code>grep -i "kerkstraat" stops.txt | grep -i "amsterdam" | head -5</code></pre>
+        </div>
+
+        <div class="step">
+            <span class="step-number">3</span>
+            <strong>Find the Stop Code</strong><br>
+            You'll see results like:
+            <pre><code>1234567,12345678,"City, Street Name",52.123456,4.123456</code></pre>
+            The <strong>second column</strong> is your stop code: <code>12345678</code>
+        </div>
+
+        <div class="error-box">
+            <strong>❌ Important Limitation</strong><br>
+            Even with the stop code, <strong>real-time departures may not be available</strong>.<br>
+            The OV API will return empty <code>{}</code> for stops without real-time tracking.<br>
+            <br>
+            <strong>What this means:</strong> The stop exists, but you won't see live departure times in the app.
+        </div>
+
+        <h2>📊 Understanding the Data</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Data Source</th>
+                    <th>Stops</th>
+                    <th>Real-Time?</th>
+                    <th>Use Case</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>OV API</strong><br><small>v0.ovapi.nl</small></td>
+                    <td>~4,111</td>
+                    <td>✅ Yes</td>
+                    <td>NextRide app (current)</td>
+                </tr>
+                <tr>
+                    <td><strong>GTFS</strong><br><small>gtfs.ovapi.nl</small></td>
+                    <td>All stops</td>
+                    <td>❌ No (scheduled only)</td>
+                    <td>Manual lookup, future features</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>🛠️ For Developers: GTFS Structure</h2>
+
+        <div class="info-box">
+            <strong>Files in GTFS ZIP:</strong>
+            <ul>
+                <li><code>stops.txt</code> (6.5 MB) - All stop locations with GPS coordinates</li>
+                <li><code>stop_times.txt</code> (1.2 GB) - Scheduled departure times</li>
+                <li><code>routes.txt</code> (193 KB) - Bus/train line information</li>
+                <li><code>trips.txt</code> (79 MB) - Trip definitions</li>
+            </ul>
+        </div>
+
+        <h3>Example: Getting Scheduled Times</h3>
+
+        <div class="step">
+            <span class="step-number">1</span>
+            <strong>Find stop_id from stops.txt</strong><br>
+            Using the stop code you found:
+            <pre><code>grep "12345678" stops.txt
+# Result: 1234567,12345678,"City, Street Name"...</code></pre>
+            The <strong>first column</strong> is stop_id: <code>1234567</code>
+        </div>
+
+        <div class="step">
+            <span class="step-number">2</span>
+            <strong>Find departures in stop_times.txt</strong><br>
+            Using the stop_id from previous step:
+            <pre><code>grep "^[^,]*,[^,]*,1234567," stop_times.txt | head -10</code></pre>
+            Results show scheduled departure times:
+            <pre><code>319645511,8,1234567,,06:11:00,06:11:00
+319645513,28,1234567,Destination Name,06:35:00,06:35:00
+319645515,28,1234567,Destination Name,07:01:00,07:01:00</code></pre>
+        </div>
+
+        <div class="warning-box">
+            <strong>⚠️ Challenge:</strong><br>
+            The <code>stop_times.txt</code> file is <strong>1.2 GB</strong> - too large for the Pebble watch or phone to process.<br>
+            A backend server would be needed to index and serve this data.
+        </div>
+
+        <h2>📖 More Information</h2>
+
+        <ul>
+            <li><a href="https://github.com/ltpitt/javascript-pebble-9292-nl/blob/master/docs/OV-API-COMPLETE-GUIDE.md" target="_blank">Complete OV API Guide</a> - Full technical documentation</li>
+            <li><a href="https://github.com/ltpitt/javascript-pebble-9292-nl/blob/master/docs/QUICK-REFERENCE.md" target="_blank">Quick Reference</a> - Command cheatsheet</li>
+            <li><a href="http://gtfs.ovapi.nl/" target="_blank">GTFS Downloads</a> - Official GTFS data source</li>
+            <li><a href="http://v0.ovapi.nl/" target="_blank">OV API</a> - Real-time departure API</li>
+        </ul>
+
+        <h2>💡 Summary</h2>
+
+        <div class="info-box">
+            <strong>Quick Answer:</strong>
+            <ol>
+                <li><strong>Best option:</strong> Use nearby major stops (Haarlem Centraal, Byzantiumstraat)</li>
+                <li><strong>Advanced:</strong> Download GTFS to find all stops, but real-time data may not be available</li>
+                <li><strong>Future:</strong> Backend server could provide scheduled times for all stops</li>
+            </ol>
+        </div>
+
+        <p style="text-align: center; color: #7f8c8d; margin-top: 40px; padding-top: 20px; border-top: 1px solid #ddd;">
+            <small>Part of NextRide for Pebble - Dutch Public Transport App</small>
+        </p>
+    </div>
+</body>
+</html>

@@ -1,6 +1,6 @@
 /**
  * NextRide - Dutch Public Transport App for Pebble
- * Shows real-time departure information for configured destinations
+ * Shows real-time departure information for configured stops
  */
 
 var UI = require('ui');
@@ -10,13 +10,13 @@ var Vector2 = require('vector2');
 
 // Global settings storage
 var appSettings = {
-  defaultDestination: null,
-  destinations: []
+  defaultStop: null,
+  stops: []
 };
 
 // Configure settings
 Settings.config(
-  { url: 'config.html' },
+  { url: 'http://davidenastri.it/nextride/config.html' },
   function(e) {
     console.log('Opening configuration page');
   },
@@ -30,15 +30,15 @@ Settings.config(
         console.log('Received settings: ' + JSON.stringify(settings));
         
         // Store settings
-        appSettings.defaultDestination = settings.defaultDestination || null;
-        appSettings.destinations = settings.destinations || [];
+        appSettings.defaultStop = settings.defaultStop || null;
+        appSettings.stops = settings.stops || [];
         
-        // Save to persistent storage
-        Settings.option('defaultDestination', appSettings.defaultDestination);
-        Settings.option('destinations', appSettings.destinations);
+        // Save to persistent storage (Settings.option handles serialization)
+        Settings.option('defaultStop', appSettings.defaultStop);
+        Settings.option('stops', appSettings.stops);
         
-        console.log('Saved ' + appSettings.destinations.length + ' destinations');
-        console.log('Default destination: ' + appSettings.defaultDestination);
+        console.log('Saved ' + appSettings.stops.length + ' stops');
+        console.log('Default stop: ' + appSettings.defaultStop);
         
         // Show confirmation
         showMainMenu();
@@ -52,12 +52,26 @@ Settings.config(
 
 // Load saved settings on startup
 function loadSettings() {
-  appSettings.defaultDestination = Settings.option('defaultDestination') || null;
-  appSettings.destinations = Settings.option('destinations') || [];
+  appSettings.defaultStop = Settings.option('defaultStop') || null;
+  var stopsData = Settings.option('stops');
+  
+  // Handle both JSON strings (legacy) and objects (current)
+  if (typeof stopsData === 'string') {
+    try {
+      appSettings.stops = JSON.parse(stopsData);
+    } catch (e) {
+      console.log('Error parsing stops JSON: ' + e);
+      appSettings.stops = [];
+    }
+  } else if (Array.isArray(stopsData)) {
+    appSettings.stops = stopsData;
+  } else {
+    appSettings.stops = [];
+  }
   
   console.log('Loaded settings on startup');
-  console.log('Destinations: ' + appSettings.destinations.length);
-  console.log('Default: ' + appSettings.defaultDestination);
+  console.log('Stops: ' + appSettings.stops.length);
+  console.log('Default: ' + appSettings.defaultStop);
 }
 
 // Show error card
@@ -121,35 +135,63 @@ function findNearbyStops(lat, lon, callback) {
     
     // Find closest stops within 500m
     var nearbyStops = [];
+    var checkedAreas = 0;
+    var foundStops = 0;
     
-    for (var stopCode in data) {
-      var stop = data[stopCode];
-      if (stop && stop.Latitude && stop.Longitude) {
-        var distance = calculateDistance(lat, lon, 
-          parseFloat(stop.Latitude), 
-          parseFloat(stop.Longitude)
-        );
+    // Iterate through all stop area codes
+    for (var stopAreaCode in data) {
+      if (data.hasOwnProperty(stopAreaCode)) {
+        checkedAreas++;
+        var stopArea = data[stopAreaCode];
         
-        if (distance < 0.5) { // Within 500m
-          nearbyStops.push({
-            code: stopCode,
-            name: stop.TimingPointName || stopCode,
-            distance: distance
-          });
+        // Each stop area contains timing points
+        for (var timingPointCode in stopArea) {
+          if (stopArea.hasOwnProperty(timingPointCode)) {
+            var timingPoint = stopArea[timingPointCode];
+            
+            // Check if this timing point has Stop data with coordinates
+            if (timingPoint && timingPoint.Stop) {
+              var stop = timingPoint.Stop;
+              
+              if (stop.Latitude && stop.Longitude) {
+                foundStops++;
+                var distance = calculateDistance(lat, lon, 
+                  parseFloat(stop.Latitude), 
+                  parseFloat(stop.Longitude)
+                );
+                
+                // Log first few for debugging
+                if (foundStops <= 5) {
+                  console.log('Check stop ' + foundStops + ': ' + stop.TimingPointName + ' @ ' + distance.toFixed(3) + 'km');
+                }
+                
+                if (distance < 0.5) { // Within 500m
+                  nearbyStops.push({
+                    code: stopAreaCode,
+                    name: stop.TimingPointName || stopAreaCode,
+                    distance: distance
+                  });
+                }
+              }
+            }
+          }
         }
       }
     }
+    
+    console.log('Checked ' + checkedAreas + ' areas, found ' + foundStops + ' stops total');
     
     // Sort by distance
     nearbyStops.sort(function(a, b) {
       return a.distance - b.distance;
     });
     
-    console.log('Found ' + nearbyStops.length + ' nearby stops');
+    console.log('Found ' + nearbyStops.length + ' nearby stops within 500m');
     
     if (nearbyStops.length === 0) {
       callback('No stops found nearby');
     } else {
+      console.log('Returning top 5: ' + nearbyStops.slice(0, 5).map(function(s) { return s.name; }).join(', '));
       callback(null, nearbyStops.slice(0, 5)); // Return top 5
     }
   }, function(error, status, request) {
@@ -171,11 +213,26 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
   return R * c;
 }
 
-// Fetch departures for a stop
+// Fetch departures for a specific stop
 function fetchDepartures(stopCode, stopName, callback) {
-  console.log('Fetching departures for: ' + stopCode);
+  console.log('=== FETCH DEPARTURES START ===');
+  console.log('stopCode parameter: ' + stopCode + ' (type: ' + typeof stopCode + ')');
+  console.log('stopName parameter: ' + stopName + ' (type: ' + typeof stopName + ')');
+  console.log('callback parameter type: ' + typeof callback);
+  
+  if (!stopCode) {
+    console.log('ERROR: stopCode is undefined/null!');
+    callback('Stop code is missing');
+    return;
+  }
+  
+  if (!stopName) {
+    console.log('WARNING: stopName is undefined/null, using default');
+    stopName = 'Unknown Stop';
+  }
   
   var url = 'http://v0.ovapi.nl/stopareacode/' + stopCode;
+  console.log('API URL: ' + url);
   
   ajax({
     url: url,
@@ -220,7 +277,7 @@ function fetchDepartures(stopCode, stopName, callback) {
                 
                 departures.push({
                   line: pass.LinePublicNumber || 'Unknown',
-                  destination: pass.DestinationName50 || 'Unknown',
+                  headsign: pass.DestinationName50 || 'Unknown',
                   time: departureTime,
                   delay: delay,
                   type: pass.TransportType || 'BUS',
@@ -241,12 +298,16 @@ function fetchDepartures(stopCode, stopName, callback) {
     });
     
     console.log('Found ' + departures.length + ' departures');
+    console.log('Calling callback with departures...');
     
     if (departures.length === 0) {
+      console.log('No departures found, calling callback with error');
       callback('No departures found for this stop');
     } else {
+      console.log('Calling callback with ' + departures.slice(0, 10).length + ' departures');
       callback(null, departures.slice(0, 10)); // Return next 10
     }
+    console.log('=== FETCH DEPARTURES END ===');
   }, function(error, status, request) {
     console.log('Departure API error: ' + JSON.stringify(error));
     console.log('Status: ' + status);
@@ -271,7 +332,23 @@ function formatTimeRemaining(departureTime) {
 }
 
 // Show departures in a menu
-function showDepartures(stopName, departures, mainMenu) {
+function showDepartures(stopName, departures, mainMenu, loadingCard) {
+  console.log('=== SHOW DEPARTURES START ===');
+  console.log('stopName: ' + stopName + ' (type: ' + typeof stopName + ')');
+  console.log('departures: ' + (departures ? departures.length + ' items' : 'NULL/UNDEFINED'));
+  console.log('mainMenu type: ' + typeof mainMenu);
+  
+  // Hide loading card before showing menu
+  if (loadingCard) {
+    loadingCard.hide();
+  }
+  
+  if (!departures || !Array.isArray(departures)) {
+    console.log('ERROR: departures is not an array!');
+    showError('Display Error', 'Invalid departure data');
+    return;
+  }
+  
   var menuItems = [];
   
   departures.forEach(function(dep) {
@@ -279,8 +356,8 @@ function showDepartures(stopName, departures, mainMenu) {
     var delayStr = dep.delay > 0 ? ' (+' + dep.delay + ')' : '';
     
     menuItems.push({
-      title: dep.line + ' - ' + timeStr + delayStr,
-      subtitle: dep.destination
+      title: (dep.line || '?') + ' - ' + timeStr + delayStr,
+      subtitle: dep.headsign || 'Unknown'
     });
   });
   
@@ -296,75 +373,90 @@ function showDepartures(stopName, departures, mainMenu) {
     var dep = departures[e.itemIndex];
     var detailCard = new UI.Card({
       title: 'Line ' + dep.line,
-      subtitle: dep.destination,
+      subtitle: dep.headsign,
       body: 'Departs: ' + formatTimeRemaining(dep.time) + 
             (dep.delay > 0 ? '\nDelay: +' + dep.delay + ' min' : '\nOn time'),
       scrollable: true
     });
     detailCard.show();
-    
-    detailCard.on('click', 'back', function() {
-      departureMenu.show();
-    });
+    // Back button will automatically return to previous window (departureMenu)
   });
   
-  departureMenu.on('back', function() {
-    mainMenu.show();
-  });
+  // Back button will automatically return to previous window (mainMenu)
   
   departureMenu.show();
 }
 
-// Show main menu with destinations
+// Show main menu with stops
 function showMainMenu() {
-  if (!appSettings.destinations || appSettings.destinations.length === 0) {
-    // No destinations configured
+  if (!appSettings.stops || appSettings.stops.length === 0) {
+    // No stops configured
     var setupCard = new UI.Card({
       title: 'NextRide',
       subtitle: 'Setup Required',
-      body: 'Open the Pebble app on your phone and configure your destinations.',
+      body: 'Open the Pebble app on your phone and configure your stops.',
       scrollable: true
     });
     setupCard.show();
     return;
   }
   
-  // Build menu items from destinations
+  // Build menu items from stops
   var menuItems = [];
   
-  // Sort destinations by order
-  var sortedDestinations = appSettings.destinations.slice().sort(function(a, b) {
-    return a.order - b.order;
+  console.log('Building menu with ' + appSettings.stops.length + ' stops');
+  
+  // Sort stops by order
+  var sortedStops = appSettings.stops.slice().sort(function(a, b) {
+    return (a.order || 0) - (b.order || 0);
   });
   
-  // Add each destination
-  sortedDestinations.forEach(function(dest) {
-    menuItems.push({
-      title: dest.name,
-      subtitle: dest.address
-    });
+  console.log('Sorted stops: ' + sortedStops.length);
+  
+  // Add each stop - ensure all properties are strings
+  sortedStops.forEach(function(stop, index) {
+    console.log('Stop ' + index + ': ' + JSON.stringify(stop));
+    var item = {
+      title: String(stop.name || 'Unnamed Stop'),
+      subtitle: String(stop.address || '')
+    };
+    console.log('Menu item: ' + JSON.stringify(item));
+    menuItems.push(item);
   });
   
   // Add GPS option if not already in list
-  menuItems.push({
-    title: '📍 Current Location',
-    subtitle: 'Use GPS'
-  });
+  var gpsItem = {
+    title: String('📍 Current Location'),
+    subtitle: String('Use GPS')
+  };
+  console.log('Adding GPS item: ' + JSON.stringify(gpsItem));
+  menuItems.push(gpsItem);
+  
+  console.log('Total menu items: ' + menuItems.length);
   
   // Create menu
   var mainMenu = new UI.Menu({
     sections: [{
-      title: 'Select Destination',
+      title: 'My Stops',
       items: menuItems
     }]
   });
   
+  console.log('Menu created successfully');
+  
+  console.log('Menu created successfully');
+  
   // Handle menu selection
   mainMenu.on('select', function(e) {
-    console.log('Selected: ' + e.item.title);
+    console.log('=== MENU SELECTION START ===');
+    console.log('Selected item title: ' + e.item.title);
+    console.log('Selected item subtitle: ' + e.item.subtitle);
+    console.log('Item index: ' + e.itemIndex);
+    console.log('Total sorted stops: ' + sortedStops.length);
     
     var itemIndex = e.itemIndex;
     var isGPS = (e.item.title === '📍 Current Location');
+    console.log('Is GPS selection: ' + isGPS);
     
     // Show loading card
     var loadingCard = new UI.Card({
@@ -400,68 +492,101 @@ function showMainMenu() {
               return;
             }
             
-            showDepartures(stops[0].name, departures, mainMenu);
+            showDepartures(stops[0].name, departures, mainMenu, loadingCard);
           });
         });
       });
     } else {
-      // Use saved destination
-      var dest = sortedDestinations[itemIndex];
+      // Use saved stop
+      console.log('Using saved stop at index: ' + itemIndex);
+      var stop = sortedStops[itemIndex];
+      console.log('Stop object: ' + JSON.stringify(stop));
+      console.log('Stop has stopCode: ' + (stop.stopCode ? 'YES' : 'NO'));
+      console.log('Stop has lat/lon: ' + (stop.lat && stop.lon ? 'YES' : 'NO'));
       
-      // Find nearby stops for this destination
-      findNearbyStops(dest.lat, dest.lon, function(err, stops) {
-        if (err) {
-          showError('Stop Error', err);
-          return;
-        }
-        
+      // If stop has a direct stopCode (for testing), use it directly
+      if (stop.stopCode) {
+        console.log('Using direct stop code: ' + stop.stopCode);
+        console.log('Stop name: ' + stop.name);
         loadingCard.body('Loading departures...');
         
-        // Get departures for closest stop
-        fetchDepartures(stops[0].code, stops[0].name, function(err, departures) {
+        console.log('Calling fetchDepartures with stopCode=' + stop.stopCode + ', name=' + stop.name);
+        fetchDepartures(stop.stopCode, stop.name, function(err, departures) {
           if (err) {
             showError('Departure Error', err);
             return;
           }
           
-          showDepartures(stops[0].name, departures, mainMenu);
+          showDepartures(stop.name, departures, mainMenu, loadingCard);
         });
-      });
+      } else {
+        // Find nearby stops for this location
+        findNearbyStops(stop.lat, stop.lon, function(err, nearbyStops) {
+          if (err) {
+            showError('Stop Error', err);
+            return;
+          }
+          
+          loadingCard.body('Loading departures...');
+          
+          // Get departures for closest stop
+          fetchDepartures(nearbyStops[0].code, nearbyStops[0].name, function(err, departures) {
+            if (err) {
+              showError('Departure Error', err);
+              return;
+            }
+            
+            showDepartures(nearbyStops[0].name, departures, mainMenu, loadingCard);
+          });
+        });
+      }
     }
   });
   
+  console.log('About to show main menu');
   mainMenu.show();
+  console.log('Main menu shown');
 }
 
 // Initialize app
 loadSettings();
 
-// If no settings and running in emulator, load test data
-if ((!appSettings.destinations || appSettings.destinations.length === 0)) {
-  console.log('No destinations found - loading test data for emulator');
-  
-  // Test data for emulator testing with real stop area codes
-  appSettings.destinations = [
-    {
-      id: 1,
-      name: 'Home',
-      address: 'Amsterdam Centraal',
-      order: 1,
-      lat: 52.3791,
-      lon: 4.9003
-    },
-    {
-      id: 2,
-      name: 'Office',
-      address: 'Amsterdam Museumplein',
-      order: 2,
-      lat: 52.3579,
-      lon: 4.8814
-    }
-  ];
-  appSettings.defaultDestination = 'Home';
-  
-  console.log('Loaded test data: ' + appSettings.destinations.length + ' destinations');
+// DEMO MODE: Set to true to test without config page
+var DEMO_MODE = true;
+
+// If no settings, either show setup card or load demo data
+if ((!appSettings.stops || appSettings.stops.length === 0)) {
+  if (DEMO_MODE) {
+    console.log('DEMO MODE: Loading test data for Haarlem');
+    
+    // Demo data: Bus stops in Haarlem with live departures
+    // Spaarnhovenstraat street exists but has no direct bus stop in OV API
+    // Using nearby stops with current departures for testing
+    appSettings.stops = [
+      {
+        id: 1,
+        name: 'Byzantiumstraat',
+        address: 'Haarlem (Residential area)',
+        order: 1,
+        lat: 52.37471,
+        lon: 4.643629,
+        stopCode: 'hlmbyz'  // 7 live departures
+      },
+      {
+        id: 2,
+        name: 'Nassaulaan',
+        address: 'Near Haarlem Centraal Station',
+        order: 2,
+        lat: 52.383495,
+        lon: 4.632862,
+        stopCode: 'hlmnsl'  // 6 live departures, ~800m from station
+      }
+    ];
+    appSettings.defaultStop = 'Nassaulaan';
+    
+    console.log('Loaded demo data: ' + appSettings.stops.length + ' stops');
+    console.log('Demo stops use direct stop codes for testing');
+  }
 }
 
 showMainMenu();

@@ -1,53 +1,54 @@
 # Documentation Index
 
+⭐ **START HERE:** [OV-API-COMPLETE-GUIDE.md](OV-API-COMPLETE-GUIDE.md) - Complete verified guide (Dec 2025)
+
 This directory contains all documentation related to the OV API research and testing for the NextRide Pebble application.
 
-## 📚 Document Overview
+## 📚 Current Documentation
 
-### Quick Start
-- **[QUICK-REFERENCE.md](QUICK-REFERENCE.md)** - Start here! TL;DR guide with curl commands and examples
+### ⭐ Authoritative Guide
+- **[OV-API-COMPLETE-GUIDE.md](OV-API-COMPLETE-GUIDE.md)** - **USE THIS!** Complete, verified, tested guide
+  - Real-time API (OV API v0) with working examples
+  - GTFS scheduled data details
+  - Verified test results from December 2025
+  - Implementation strategies
+  - Common pitfalls and solutions
 
-### Testing & Validation
-- **[FINAL-API-TESTING-REPORT.md](FINAL-API-TESTING-REPORT.md)** - Complete testing report with findings and recommendations
-- **[API-TESTING-GUIDE.md](API-TESTING-GUIDE.md)** - Comprehensive curl testing guide with expected responses
-- **[API-VALIDATION-FINDINGS.md](API-VALIDATION-FINDINGS.md)** - Early validation research
+### Quick Reference
+- **[QUICK-REFERENCE.md](QUICK-REFERENCE.md)** - Quick curl commands (verified Dec 2025)
 
-### Research
-- **[OVAPI-RESEARCH.md](OVAPI-RESEARCH.md)** - Initial API research and endpoint documentation
+### Integration Example
+- **[HOMEASSISTANT-OVAPI-INSTALL.md](HOMEASSISTANT-OVAPI-INSTALL.md)** - Home Assistant integration example
 
-## 🎯 Key Finding
+## 🎯 Key Findings (December 2025)
 
-**The OV API provides timetable data via:**
+**Real-time API:**
 ```bash
-curl http://v0.ovapi.nl/tpc/{stop_code}
+curl "http://v0.ovapi.nl/stopareacode/hlmbyz"  # ✅ Returns 7+ live departures
 ```
 
-✅ Solution validated  
-⚠️ Requires manual testing (API not accessible from CI/CD)
+**All stops:**
+```bash
+curl "http://v0.ovapi.nl/stopareacode"  # ✅ Returns 4,111 timing points
+```
+
+**GTFS complete data:**
+```bash
+curl "http://gtfs.ovapi.nl/nl/gtfs-nl.zip" -o gtfs.zip  # ✅ All stops + schedules
+```
+
+### Important Discoveries
+
+✅ **Real-time data available** for ~4,111 timing points (major stops)  
+⚠️ **Not all stops have real-time data** - small stops only in GTFS schedules  
+✅ **App implementation correct** - works with timing points  
+🔮 **GTFS integration optional** - for complete stop coverage (requires backend)
 
 ## 📖 Reading Order
 
-1. **QUICK-REFERENCE.md** - Get the answer quickly
-2. **FINAL-API-TESTING-REPORT.md** - Understand the full findings
-3. **API-TESTING-GUIDE.md** - Learn how to test manually
-4. **OVAPI-RESEARCH.md** - Deep dive into API structure
-
-## 🔧 Testing
-
-Run the automated test script:
-```bash
-./test-ovapi.sh
-```
-
-⚠️ Requires internet access to ovapi.nl (not available in GitHub Actions)
-
-## 📝 Summary
-
-| Question | Answer |
-|----------|--------|
-| Can we get timetables? | ✅ Yes |
-| Endpoint to use? | `/tpc/{stop_code}` |
-| Real-time data? | ✅ Yes |
+1. **[OV-API-COMPLETE-GUIDE.md](OV-API-COMPLETE-GUIDE.md)** ⭐ Complete reference
+2. **[QUICK-REFERENCE.md](QUICK-REFERENCE.md)** - Quick commands
+3. **[HOMEASSISTANT-OVAPI-INSTALL.md](HOMEASSISTANT-OVAPI-INSTALL.md)** - Integration example (optional)
 | Authentication needed? | ❌ No (open API) |
 | Working in app.js? | ✅ Yes (lines 185-245) |
 | Can test in CI/CD? | ❌ No (DNS blocked) |

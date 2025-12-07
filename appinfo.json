@@ -1,8 +1,5 @@
 {
-  "appKeys": {
-    "defaultDestination": 0,
-    "destinations": 1
-  },
+  "appKeys": {},
   "capabilities": [
     "configurable"
   ],

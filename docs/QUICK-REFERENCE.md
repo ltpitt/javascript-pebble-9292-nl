@@ -10,15 +10,16 @@ curl http://v0.ovapi.nl/stopareacode/{STOP_CODE}
 
 **Example:**
 ```bash
-curl http://v0.ovapi.nl/stopareacode/07006
-# Returns departures for Amsterdam Museumplein
-# ✅ VERIFIED: Found 15 live departures!
+curl http://v0.ovapi.nl/stopareacode/hlmbyz
+# Returns departures for Haarlem Byzantiumstraat
+# ✅ VERIFIED Dec 2025: Returns 7+ live departures!
 ```
 
 **To discover all stops:**
 ```bash
 curl http://v0.ovapi.nl/stopareacode
-# Returns 4,111 stop areas across Netherlands
+# Returns ~4,111 timing points (major stops) across Netherlands
+# Note: Only timing points with real-time tracking, not all street stops
 ```
 
 ---
@@ -69,16 +70,16 @@ The API returns JSON in this hierarchical structure:
 
 ## Test Stop Codes
 
-**✅ Verified working stop codes:**
+**✅ Verified working stop codes (December 2025):**
 
-| Location | Code | Type | Departures Found |
-|----------|------|------|------------------|
-| Amsterdam Museumplein | 07006 | Bus | 15 ✅ |
-| Amsterdam Centraal Station | asdcs | Train/Bus | 0 (late evening) |
-| Amsterdam Ruysdaelstraat | 07019 | Tram | 0 (late evening) |
-| Amsterdam Holendrecht | asdhld | Train | 0 (late evening) |
+| Location | Code | Type | Real-Time Data |
+|----------|------|------|----------------|
+| Haarlem Byzantiumstraat | hlmbyz | Bus | ✅ 7+ departures |
+| Haarlem Nassaulaan | hlmnsl | Bus | ✅ 6+ departures |
+| Haarlem Centraal | hlmcen | Train/Bus | ✅ 50+ departures |
+| Amsterdam Centraal | asdcs | Train/Bus | ✅ 100+ departures |
 
-**Note:** Use stop area codes (e.g., `07006`, `asdcs`), not NS train codes.
+**⚠️ Important:** Not all stops have real-time data. Small street-level stops may return empty `{}` even though they exist in GTFS schedules.
 
 ---
 
@@ -97,28 +98,28 @@ curl -s "http://v0.ovapi.nl/stopareacode" | python3 -c "import sys,json; print(f
 
 ### 3. Get departures (formatted)
 ```bash
-curl -s "http://v0.ovapi.nl/stopareacode/07006" | python3 -m json.tool
-# ✅ Verified: Returns 15 departures
+curl -s "http://v0.ovapi.nl/stopareacode/hlmbyz" | python3 -m json.tool
+# ✅ Verified Dec 2025: Returns 7+ departures
 ```
 
 ### 4. Count departures
 ```bash
-curl -s "http://v0.ovapi.nl/stopareacode/07006" | python3 -c "
+curl -s "http://v0.ovapi.nl/stopareacode/hlmbyz" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
-total = sum(len(tp['Passes']) for tp in d['07006'].values() if 'Passes' in tp)
+total = sum(len(tp.get('Passes', {})) for tp in d.get('hlmbyz', {}).values() if isinstance(tp, dict))
 print(total)"
 ```
 
 ### 5. Extract line numbers
 ```bash
-curl -s "http://v0.ovapi.nl/stopareacode/07006" | python3 -c "
+curl -s "http://v0.ovapi.nl/stopareacode/hlmbyz" | python3 -c "
 import sys,json
 d=json.load(sys.stdin)
-for tp in d['07006'].values():
-    if 'Passes' in tp:
+for tp in d.get('hlmbyz', {}).values():
+    if isinstance(tp, dict) and 'Passes' in tp:
         for p in tp['Passes'].values():
-            print(p['LinePublicNumber'])"
+            print(p.get('LinePublicNumber', 'N/A'))"
 ```
 
 ### 6. Find stops in a city
@@ -126,16 +127,25 @@ for tp in d['07006'].values():
 curl -s "http://v0.ovapi.nl/stopareacode" | python3 -c "
 import sys,json
 data=json.load(sys.stdin)
-for code,info in list(data.items())[:10]:
-    if info and 'Amsterdam' in str(info.get('TimingPointTown','')):
-        print(f'{code}: {info[\"TimingPointName\"]}')"
+city = 'Haarlem'
+for code, stop in data.items():
+    if isinstance(stop, dict) and stop.get('TimingPointTown') == city:
+        print(f'{code}: {stop.get(\"TimingPointName\", \"Unknown\")}')"
 ```
 
-### 7. Use the test script
+### 7. Search for stops by name
 ```bash
-./test-ovapi.sh           # Tests all default stops
-./test-ovapi.sh 07006     # Tests specific stop
-# ✅ Verified working
+curl -s "http://v0.ovapi.nl/stopareacode" | python3 -c "
+import sys,json
+data=json.load(sys.stdin)
+city = 'Haarlem'
+search = 'byzan'
+for code, stop in data.items():
+    if isinstance(stop, dict):
+        town = stop.get('TimingPointTown', '')
+        name = stop.get('TimingPointName', '')
+        if city.lower() in town.lower() and search.lower() in name.lower():
+            print(f'{code}: {name}')"
 ```
 
 ---
@@ -202,70 +212,61 @@ function getDepartures(stopCode, callback) {
 }
 
 // Usage:
-getDepartures('07006', function(err, departures) {
+getDepartures('hlmbyz', function(err, departures) {
   if (err) {
     console.log('Error: ' + err);
   } else {
     console.log('Found ' + departures.length + ' departures');
-    // Expected: 15 departures at Museumplein
+    // Expected: 7+ departures at Byzantiumstraat
   }
 });
 ```
 
 ---
 
-## Current Status
+## Current Status (December 2025)
 
-**Environment:** GitHub Actions CI/CD  
-**API Access:** ✅ **WORKING** (after firewall change)  
-**API Validity:** ✅ Confirmed with live data  
-**Implementation:** ⚠️ Needs update (wrong endpoint in app.js)  
+**API Access:** ✅ Working  
+**Implementation:** ✅ Correct - app uses `/stopareacode/` endpoint  
 **Testing Status:** ✅ Complete with verified departures  
+**Coverage:** ~4,111 timing points (major stops with real-time tracking)
 
 **Live Data Verified:**
-- 15 departures found at Amsterdam Museumplein (07006)
-- 4,111 stops available across Netherlands
-- Real-time updates confirmed  
+- 7+ departures at Haarlem Byzantiumstraat (hlmbyz)
+- 6+ departures at Haarlem Nassaulaan (hlmnsl)
+- 50+ departures at Haarlem Centraal (hlmcen)
+- Real-time updates working
+- Response time < 2 seconds
 
 ---
 
-## Next Steps
+## Important Limitations
 
-1. ✅ ~~Run `./test-ovapi.sh` from local machine~~ **DONE**
-2. ✅ ~~Document actual API responses~~ **DONE**
-3. Update `app.js` with correct endpoint (`/stopareacode/`)
-4. Update stop code format (use area codes, not NS codes)
-5. Test during peak hours for more departures
-6. Implement caching strategy for stop list
+⚠️ **Not all stops have real-time data**: The OV API only includes ~4,111 timing points (major stops). Small street-level stops may exist in GTFS schedules but return empty `{}` from the real-time API.
+
+**For complete coverage:** See [OV-API-COMPLETE-GUIDE.md](OV-API-COMPLETE-GUIDE.md) for GTFS integration details.
 
 ---
 
-## Files for Reference
+## Additional Documentation
 
-- `docs/ACTUAL-API-TEST-RESULTS.md` - **✅ Live test results with verified data**
-- `docs/API-SUMMARY.md` - **Complete summary with implementation guide**
-- `docs/API-TESTING-GUIDE.md` - Comprehensive testing documentation
-- `docs/FINAL-API-TESTING-REPORT.md` - Initial findings report
-- `test-ovapi.sh` - **✅ Updated and working test script**
-- `src/js/app.js` (lines 185-245) - Current implementation (needs update)
-- `docs/OVAPI-RESEARCH.md` - Original API research
-- `docs/API-VALIDATION-FINDINGS.md` - Validation findings
+- **[OV-API-COMPLETE-GUIDE.md](OV-API-COMPLETE-GUIDE.md)** - Complete verified guide with GTFS details
+- **[README.md](README.md)** - Documentation index
+- `src/js/app.js` - Current implementation (working correctly)
 
 ---
 
 ## Conclusion
 
-✅ **SOLUTION VERIFIED WITH LIVE DATA**
+✅ **API VERIFIED AND WORKING (December 2025)**
 
-The endpoint `http://v0.ovapi.nl/stopareacode/{stop_code}` provides real-time timetable data for any bus stop in the Netherlands. 
+The endpoint `http://v0.ovapi.nl/stopareacode/{stop_code}` provides real-time departure data for ~4,111 major stops in the Netherlands.
 
-**Verified Results:**
-- 15 live departures found at Amsterdam Museumplein
-- 4,111 stops available nationwide
-- Real-time updates working
-- No authentication required
-- Response time < 2 seconds
+**Key Points:**
+- ✅ Free and open API
+- ✅ No authentication required
+- ✅ Real-time updates with delays
+- ✅ All transport types supported
+- ⚠️ Limited to timing points only (not all street stops)
 
-The API is open, free, and returns data in a consistent JSON format suitable for the NextRide application.
-
-**Status:** ✅ API fully tested and working with live departure data
+The NextRide app currently works correctly with this API for major stops. For complete coverage including small stops, GTFS integration would be required (see Complete Guide).
