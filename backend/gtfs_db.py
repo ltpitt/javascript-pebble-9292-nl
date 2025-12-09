@@ -387,30 +387,63 @@ class GTFSDatabase:
         logger.info(f"✅ Downloaded {total_size // (1024*1024)}MB")
     
     def search_stops(self, query: str, limit: int = 20) -> List[Dict]:
-        """Search stops by name"""
+        """
+        Search stops by name or stop code.
+        Normalizes punctuation (commas, periods) to spaces for flexible matching.
+        Filters out invalid stop areas (stoparea:* with bad GPS or no schedule).
+        Includes primary destination to help distinguish between stops with same name.
+        Example: "haarlem spaarnhovenstraat" matches "Haarlem, Spaarnhovenstraat"
+        """
         query_pattern = f"%{query.lower()}%"
         
         cursor = self.conn.execute("""
             SELECT 
-                stop_code,
-                stop_name,
-                stop_lat,
-                stop_lon,
+                stops.stop_code,
+                stops.stop_name,
+                stops.stop_lat,
+                stops.stop_lon,
+                stops.stop_id,
                 (SELECT COUNT(*) FROM stop_times WHERE stop_times.stop_id = stops.stop_id LIMIT 1) as has_schedule
             FROM stops
-            WHERE LOWER(stop_name) LIKE ?
-            ORDER BY stop_name
+            WHERE 
+                (REPLACE(REPLACE(REPLACE(LOWER(stop_name), ',', ' '), '.', ' '), '  ', ' ') LIKE ? 
+                 OR LOWER(stop_code) LIKE ?)
+                AND stop_id NOT LIKE 'stoparea:%'
+                AND stop_lat BETWEEN 50.5 AND 53.7
+                AND stop_lon BETWEEN 3.0 AND 7.5
+            ORDER BY 
+                CASE 
+                    WHEN LOWER(stop_code) = LOWER(?) THEN 0
+                    WHEN LOWER(stop_name) = LOWER(?) THEN 1
+                    ELSE 2
+                END,
+                stop_name
             LIMIT ?
-        """, (query_pattern, limit))
+        """, (query_pattern, query_pattern, query, query, limit))
         
         results = []
         for row in cursor:
+            # Get most common destination for this stop
+            dest_cursor = self.conn.execute("""
+                SELECT t.trip_headsign, COUNT(*) as freq
+                FROM stop_times st
+                JOIN trips t ON st.trip_id = t.trip_id
+                WHERE st.stop_id = ?
+                GROUP BY t.trip_headsign
+                ORDER BY freq DESC
+                LIMIT 1
+            """, (row['stop_id'],))
+            
+            dest_row = dest_cursor.fetchone()
+            direction = dest_row['trip_headsign'] if dest_row else None
+            
             results.append({
                 'stop_code': row['stop_code'],
                 'stop_name': row['stop_name'],
                 'lat': row['stop_lat'],
                 'lon': row['stop_lon'],
-                'has_schedule': row['has_schedule'] > 0
+                'has_schedule': row['has_schedule'] > 0,
+                'direction': direction  # Primary direction to help users choose
             })
         
         return results

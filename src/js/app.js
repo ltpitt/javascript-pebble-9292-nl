@@ -11,7 +11,8 @@ var Vector2 = require('vector2');
 // Global settings storage
 var appSettings = {
   defaultStop: null,
-  stops: []
+  stops: [],
+  backendApiUrl: null
 };
 
 // Configure settings
@@ -32,10 +33,12 @@ Settings.config(
         // Store settings
         appSettings.defaultStop = settings.defaultStop || null;
         appSettings.stops = settings.stops || [];
+        appSettings.backendApiUrl = settings.backendApiUrl || null;
         
         // Save to persistent storage (Settings.option handles serialization)
         Settings.option('defaultStop', appSettings.defaultStop);
         Settings.option('stops', appSettings.stops);
+        Settings.option('backendApiUrl', appSettings.backendApiUrl);
         
         console.log('Saved ' + appSettings.stops.length + ' stops');
         console.log('Default stop: ' + appSettings.defaultStop);
@@ -53,6 +56,7 @@ Settings.config(
 // Load saved settings on startup
 function loadSettings() {
   appSettings.defaultStop = Settings.option('defaultStop') || null;
+  appSettings.backendApiUrl = Settings.option('backendApiUrl') || null;
   var stopsData = Settings.option('stops');
   
   // Handle both JSON strings (legacy) and objects (current)
@@ -208,6 +212,7 @@ function fetchDepartures(stopCode, stopName, callback) {
   console.log('stopCode parameter: ' + stopCode + ' (type: ' + typeof stopCode + ')');
   console.log('stopName parameter: ' + stopName + ' (type: ' + typeof stopName + ')');
   console.log('callback parameter type: ' + typeof callback);
+  console.log('Backend API URL: ' + appSettings.backendApiUrl);
   
   if (!stopCode) {
     console.log('ERROR: stopCode is undefined/null!');
@@ -220,6 +225,7 @@ function fetchDepartures(stopCode, stopName, callback) {
     stopName = 'Unknown Stop';
   }
   
+  // Try OV API first
   var url = 'http://v0.ovapi.nl/stopareacode/' + stopCode;
   console.log('API URL: ' + url);
   
@@ -300,33 +306,160 @@ function fetchDepartures(stopCode, stopName, callback) {
     console.log('Calling callback with departures...');
     
     if (departures.length === 0) {
-      console.log('No departures found, calling callback with error');
-      callback('No departures found for this stop');
+      console.log('No real-time departures, trying backend fallback...');
+      // Try backend API if configured
+      if (appSettings.backendApiUrl) {
+        fetchScheduledDepartures(stopCode, stopName, callback);
+      } else {
+        console.log('No backend API configured, returning error');
+        callback('No departures found for this stop');
+      }
     } else {
       console.log('Calling callback with ' + departures.slice(0, 10).length + ' departures');
-      callback(null, departures.slice(0, 10)); // Return next 10
+      // Mark as real-time data
+      var realtimeDepartures = departures.slice(0, 10).map(function(dep) {
+        dep.isRealtime = true;
+        return dep;
+      });
+      callback(null, realtimeDepartures);
     }
     console.log('=== FETCH DEPARTURES END ===');
   }, function(error, status, request) {
-    console.log('Departure API error: ' + JSON.stringify(error));
+    console.log('OV API error: ' + JSON.stringify(error));
     console.log('Status: ' + status);
-    console.log('URL: ' + url);
-    callback('Failed to fetch departures: ' + (status || 'network error'));
+    console.log('Trying backend fallback...');
+    
+    // Try backend API on OV API failure
+    if (appSettings.backendApiUrl) {
+      fetchScheduledDepartures(stopCode, stopName, callback);
+    } else {
+      console.log('No backend API configured');
+      callback('Failed to fetch departures: ' + (status || 'network error'));
+    }
+  });
+}
+
+// Fetch scheduled departures from backend API
+function fetchScheduledDepartures(stopCode, stopName, callback) {
+  console.log('=== FETCH SCHEDULED DEPARTURES ===');
+  console.log('Backend API: ' + appSettings.backendApiUrl);
+  console.log('Stop code: ' + stopCode);
+  
+  if (!appSettings.backendApiUrl) {
+    callback('Backend API not configured');
+    return;
+  }
+  
+  var url = appSettings.backendApiUrl + '/api/stops/' + stopCode + '/departures?limit=10';
+  console.log('Backend URL: ' + url);
+  
+  ajax({
+    url: url,
+    type: 'json'
+  }, function(data) {
+    console.log('Received scheduled departure data');
+    
+    if (!data || !data.departures || !Array.isArray(data.departures)) {
+      console.log('Invalid backend response format');
+      callback('Invalid schedule data');
+      return;
+    }
+    
+    var departures = [];
+    
+    data.departures.forEach(function(dep) {
+      departures.push({
+        line: dep.route_short_name || dep.route_long_name || 'Unknown',
+        headsign: dep.trip_headsign || dep.stop_name || 'Unknown',
+        time: dep.departure_time, // Format: "HH:MM:SS"
+        delay: 0, // Scheduled data has no delay info
+        type: dep.mode || 'BUS',
+        platform: '',
+        isRealtime: false // Schedule data from GTFS
+      });
+    });
+    
+    console.log('Parsed ' + departures.length + ' scheduled departures');
+    
+    if (departures.length === 0) {
+      callback('No scheduled departures found');
+    } else {
+      callback(null, departures);
+    }
+  }, function(error, status, request) {
+    console.log('Backend API error: ' + JSON.stringify(error));
+    console.log('Status: ' + status);
+    
+    // Parse backend error message for user-friendly display
+    var errorMsg = 'Backend API error';
+    if (status === 404) {
+      // 404 means no departures found, not API failure
+      if (error && error.message) {
+        errorMsg = error.message;
+      } else {
+        errorMsg = 'No scheduled departures found';
+      }
+    } else if (status >= 500) {
+      errorMsg = 'Backend API temporarily unavailable';
+    } else if (status) {
+      errorMsg = 'Backend API error: ' + status;
+    } else {
+      errorMsg = 'Network error - check connection';
+    }
+    
+    callback(errorMsg);
   });
 }
 
 // Format time remaining until departure
 function formatTimeRemaining(departureTime) {
-  var now = new Date();
-  var departure = new Date(departureTime);
-  var minutes = Math.round((departure - now) / 60000);
+  // Handle ISO datetime (OV API): "2025-12-09T18:30:00+01:00"
+  // Handle time string (Backend): "18:30:00"
   
-  if (minutes < 1) {
-    return 'Now';
-  } else if (minutes === 1) {
-    return '1 min';
+  if (departureTime.indexOf('T') !== -1) {
+    // ISO datetime from OV API
+    var now = new Date();
+    var departure = new Date(departureTime);
+    var minutes = Math.round((departure - now) / 60000);
+    
+    if (minutes < 1) {
+      return 'Now';
+    } else if (minutes === 1) {
+      return '1 min';
+    } else {
+      return minutes + ' min';
+    }
   } else {
-    return minutes + ' min';
+    // Time string from backend API (HH:MM:SS)
+    var parts = departureTime.split(':');
+    if (parts.length >= 2) {
+      var hours = parseInt(parts[0], 10);
+      var mins = parseInt(parts[1], 10);
+      
+      var now = new Date();
+      var currentHours = now.getHours();
+      var currentMins = now.getMinutes();
+      
+      var depMinutes = hours * 60 + mins;
+      var nowMinutes = currentHours * 60 + currentMins;
+      var diff = depMinutes - nowMinutes;
+      
+      // Handle next day (e.g., 00:30 when it's 23:30)
+      if (diff < -720) { // More than 12 hours in past
+        diff += 1440; // Add 24 hours
+      }
+      
+      if (diff < 1) {
+        return 'Now';
+      } else if (diff === 1) {
+        return '1 min';
+      } else {
+        return diff + ' min';
+      }
+    }
+    
+    // Fallback: just return the time
+    return departureTime.substring(0, 5); // "HH:MM"
   }
 }
 
@@ -353,9 +486,10 @@ function showDepartures(stopName, departures, mainMenu, loadingCard) {
   departures.forEach(function(dep) {
     var timeStr = formatTimeRemaining(dep.time);
     var delayStr = dep.delay > 0 ? ' (+' + dep.delay + ')' : '';
+    var sourceIcon = dep.isRealtime ? ' ⏱' : ' 📅';
     
     menuItems.push({
-      title: (dep.line || '?') + ' - ' + timeStr + delayStr,
+      title: (dep.line || '?') + ' - ' + timeStr + delayStr + sourceIcon,
       subtitle: dep.headsign || 'Unknown'
     });
   });
@@ -370,11 +504,13 @@ function showDepartures(stopName, departures, mainMenu, loadingCard) {
   departureMenu.on('select', function(e) {
     // Show details
     var dep = departures[e.itemIndex];
+    var sourceText = dep.isRealtime ? '\nSource: Real-time' : '\nSource: Schedule';
     var detailCard = new UI.Card({
       title: 'Line ' + dep.line,
       subtitle: dep.headsign,
       body: 'Departs: ' + formatTimeRemaining(dep.time) + 
-            (dep.delay > 0 ? '\nDelay: +' + dep.delay + ' min' : '\nOn time'),
+            (dep.delay > 0 ? '\nDelay: +' + dep.delay + ' min' : '\nOn time') +
+            sourceText,
       scrollable: true
     });
     detailCard.show();
@@ -576,7 +712,7 @@ function showMainMenu() {
 loadSettings();
 
 // DEMO MODE: Set to true to test without config page
-var DEMO_MODE = true;
+var DEMO_MODE = false;
 
 // If no settings, either show setup card or load demo data
 if ((!appSettings.stops || appSettings.stops.length === 0)) {
@@ -584,32 +720,31 @@ if ((!appSettings.stops || appSettings.stops.length === 0)) {
     console.log('DEMO MODE: Loading test data for Haarlem');
     
     // Demo data: Bus stops in Haarlem with live departures
-    // Spaarnhovenstraat street exists but has no direct bus stop in OV API
-    // Using nearby stops with current departures for testing
     appSettings.stops = [
       {
         id: 1,
-        name: 'Byzantiumstraat',
+        name: 'Spaarnhovenstraat',
         address: 'Haarlem (Residential area)',
         order: 1,
         lat: 52.37471,
         lon: 4.643629,
-        stopCode: 'hlmbyz'  // 7 live departures
+        stopCode: '55100120'  // Line 3 buses, runs until after midnight
       },
       {
         id: 2,
-        name: 'Nassaulaan',
-        address: 'Near Haarlem Centraal Station',
+        name: 'Byzantiumstraat',
+        address: 'Haarlem (Residential area)',
         order: 2,
-        lat: 52.383495,
-        lon: 4.632862,
-        stopCode: 'hlmnsl'  // 6 live departures, ~800m from station
+        lat: 52.37471,
+        lon: 4.643629,
+        stopCode: 'hlmbyz'  // Line 15 buses
       }
     ];
-    appSettings.defaultStop = 'Nassaulaan';
+    appSettings.defaultStop = 'Spaarnhovenstraat';
     
     console.log('Loaded demo data: ' + appSettings.stops.length + ' stops');
     console.log('Demo stops use direct stop codes for testing');
+    console.log('Spaarnhovenstraat: Line 3 buses run until after midnight');
   }
 }
 

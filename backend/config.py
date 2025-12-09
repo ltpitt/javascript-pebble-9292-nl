@@ -20,6 +20,8 @@ class Settings:
         "https://davidenastri.it",
         "http://davidenastri.it",
         "http://localhost:*",  # For local development
+        "http://192.168.178.*",  # Local network (for Pebble testing)
+        "http://10.0.0.*",  # Alternative local network range
     ]
     
     # If DEBUG mode, allow all origins (development only)

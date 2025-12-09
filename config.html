@@ -329,6 +329,7 @@
         .search-results {
             max-height: 300px;
             overflow-y: auto;
+            overflow-x: hidden;
             margin-top: 10px;
         }
         
@@ -344,8 +345,6 @@
         
         .search-result-item:hover {
             border-color: #4A90E2;
-            background: #f8fbff;
-            transform: translateX(2px);
         }
         
         .search-result-name {
@@ -447,12 +446,25 @@
             <!-- Stop Search Feature -->
             <div class="stop-search-box">
                 <h3>🔍 Find Your Bus Stop</h3>
+                <div class="help-text" style="margin-bottom: 10px;">
+                    Searches real-time stops and schedules. Results show: 🟢 Real-time available 🟡 Schedule only
+                </div>
                 <div class="search-inputs">
                     <input type="text" id="search-city" placeholder="City (e.g., Haarlem)" />
                     <input type="text" id="search-stop" placeholder="Stop name (e.g., Byzantiumstraat)" />
                     <button class="btn-search" id="btn-search-stops">Search</button>
                 </div>
                 <div id="search-results"></div>
+            </div>
+            
+            <!-- Advanced Settings -->
+            <div class="stop-search-box" style="background: #fff5e6; border-color: #ff9800;">
+                <h3>⚙️ Advanced Settings</h3>
+                <div class="form-group" style="margin-bottom: 0;">
+                    <label>Backend API URL (Required for schedules)</label>
+                    <input type="text" id="backend-api-url" placeholder="http://192.168.178.80:5001" />
+                    <div class="help-text">Backend API for GTFS schedule data. Provides fallback when real-time is unavailable for the selected stop.</div>
+                </div>
             </div>
             
             <button class="btn-add" id="add-stop">+ Add Stop</button>
@@ -465,6 +477,7 @@
         // State management
         let stops = [];
         let defaultStop = '';
+        let backendApiUrl = '';
         let editingId = null;
         
         // Load settings on page load
@@ -475,6 +488,7 @@
                     const settings = JSON.parse(savedSettings);
                     stops = settings.stops || [];
                     defaultStop = settings.defaultStop || '';
+                    backendApiUrl = settings.backendApiUrl || '';
                     
                     // Add default stops if none exist
                     if (stops.length === 0) {
@@ -516,7 +530,8 @@
         function autoSave() {
             const settings = {
                 defaultStop: defaultStop,
-                stops: stops
+                stops: stops,
+                backendApiUrl: backendApiUrl
             };
             
             // Store in localStorage for persistence
@@ -594,6 +609,7 @@
         
         function updateDefaultDropdown() {
             const select = document.getElementById('default-stop');
+            const backendInput = document.getElementById('backend-api-url');
             const sorted = [...stops].sort((a, b) => a.order - b.order);
             
             select.innerHTML = '<option value="">Choose default...</option>' +
@@ -601,6 +617,9 @@
                 sorted.map(stop => 
                     `<option value="${stop.id}" ${stop.id === defaultStop ? 'selected' : ''}>${stop.name || 'Unnamed'}</option>`
                 ).join('');
+            
+            // Update backend API URL field
+            backendInput.value = backendApiUrl || '';
         }
         
         function editStop(id) {
@@ -854,11 +873,18 @@
             autoSave();
         });
         
+        // Update backend API URL
+        document.getElementById('backend-api-url').addEventListener('change', (e) => {
+            backendApiUrl = e.target.value.trim();
+            autoSave();
+        });
+        
         // Done button - send settings to watch and close
         document.getElementById('save-settings').addEventListener('click', () => {
             const settings = {
                 defaultStop: defaultStop,
-                stops: stops
+                stops: stops,
+                backendApiUrl: backendApiUrl
             };
             
             // Store in localStorage for persistence
@@ -898,6 +924,7 @@
             const stopName = document.getElementById('search-stop').value.trim().toLowerCase();
             const resultsDiv = document.getElementById('search-results');
             const searchBtn = document.getElementById('btn-search-stops');
+            const backendApiUrl = document.getElementById('backend-api-url').value.trim();
             
             if (!city) {
                 resultsDiv.innerHTML = '<div class="search-error">Please enter a city name</div>';
@@ -907,17 +934,18 @@
             // Disable button and show loading
             searchBtn.disabled = true;
             searchBtn.textContent = 'Searching...';
-            resultsDiv.innerHTML = '<div class="search-loading">🔄 Searching for stops...</div>';
+            resultsDiv.innerHTML = '<div class="search-loading">🔄 Searching real-time stops and schedules...</div>';
             
             try {
-                // Fetch stop data if not cached (OV API - 4,111 timing points with real-time data)
+                const results = [];
+                const ovApiResults = new Map(); // Track OV API results by stop code
+                
+                // Step 1: Search OV API for real-time stops (4,111 stops)
                 if (!stopDataCache) {
                     const response = await fetch('http://v0.ovapi.nl/stopareacode');
                     stopDataCache = await response.json();
                 }
                 
-                // Search through stops
-                const results = [];
                 for (const [code, stop] of Object.entries(stopDataCache)) {
                     if (typeof stop === 'object' && stop !== null) {
                         const town = stop.TimingPointTown || '';
@@ -932,37 +960,113 @@
                                     name: name,
                                     town: town,
                                     lat: stop.Latitude,
-                                    lon: stop.Longitude
+                                    lon: stop.Longitude,
+                                    hasRealtime: true
                                 });
+                                ovApiResults.set(code, true);
                             }
                         }
                     }
                 }
                 
-                // Display results
+                // Step 2: Search backend GTFS for schedule-only stops (46,000 stops)
+                if (backendApiUrl) {
+                    try {
+                        const searchQuery = stopName ? `${city} ${stopName}` : city;
+                        console.log(`Searching backend: ${backendApiUrl}/api/stops/search?query=${encodeURIComponent(searchQuery)}`);
+                        const backendResponse = await fetch(`${backendApiUrl}/api/stops/search?query=${encodeURIComponent(searchQuery)}&limit=50`);
+                        console.log('Backend response status:', backendResponse.status);
+                        if (backendResponse.ok) {
+                            const backendData = await backendResponse.json();
+                            console.log('Backend results:', backendData.count, 'stops');
+                            if (backendData.stops && Array.isArray(backendData.stops)) {
+                                // Add backend results that aren't already in OV API
+                                backendData.stops.forEach(stop => {
+                                    if (!ovApiResults.has(stop.stop_code)) {
+                                        results.push({
+                                            code: stop.stop_code,
+                                            name: stop.stop_name,
+                                            town: city,
+                                            lat: stop.lat,
+                                            lon: stop.lon,
+                                            hasRealtime: false,
+                                            direction: stop.direction  // Primary direction to help users choose
+                                        });
+                                    }
+                                });
+                                console.log(`Added ${results.length - ovApiResults.size} backend-only stops`);
+                            }
+                        } else {
+                            console.warn('Backend returned error:', backendResponse.status);
+                            // Show warning to user
+                            resultsDiv.innerHTML = `<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 12px;">
+                                ⚠️ Backend unavailable (HTTP ${backendResponse.status}). Showing real-time stops only.<br>
+                                <small>Check Backend API URL: ${backendApiUrl}</small>
+                            </div>` + resultsDiv.innerHTML;
+                        }
+                    } catch (backendError) {
+                        console.error('Backend search failed:', backendError);
+                        // Show error to user
+                        resultsDiv.innerHTML = `<div style="background: #fff3cd; color: #856404; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 12px;">
+                            ⚠️ Cannot reach backend: ${backendError.message}<br>
+                            <small>Check Backend API URL: ${backendApiUrl}</small><br>
+                            <small>Showing real-time stops only.</small>
+                        </div>` + resultsDiv.innerHTML;
+                    }
+                } else {
+                    console.warn('Backend API URL not configured');
+                    // Show info to user if no backend configured
+                    if (results.length === 0) {
+                        resultsDiv.innerHTML = `<div style="background: #e7f3ff; color: #004085; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 12px;">
+                            ℹ️ Backend API not configured. Configure it in Advanced Settings to access schedule data for more stops.
+                        </div>` + resultsDiv.innerHTML;
+                    }
+                }
+                
+                // Display combined results
                 if (results.length === 0) {
-                    resultsDiv.innerHTML = `
-                        <div class="search-error">
-                            <strong>No stops found</strong><br>
-                            <small style="display: block; margin-top: 8px; line-height: 1.4;">
-                                Only major stops with real-time tracking are available (~4,111 stops).<br>
-                                Small street-level stops may not be in the database.<br>
-                                Try nearby major stops like stations or main bus stops.<br>
-                                <a href="https://ltpitt.github.io/javascript-pebble-9292-nl/gtfs-guide.html" target="_blank" style="color: #3498db; text-decoration: underline; margin-top: 8px; display: inline-block;">
-                                    📖 How to find stops not in the database
-                                </a>
-                            </small>
-                        </div>`;
+                    if (!backendApiUrl) {
+                        resultsDiv.innerHTML = `
+                            <div style="background: #ff9800; color: white; padding: 15px; border-radius: 6px; margin-bottom: 10px; font-weight: 600;">
+                                ⚠️ Backend API Not Configured
+                            </div>
+                            <div class="search-error">
+                                <strong>No stops found</strong><br>
+                                <small style="display: block; margin-top: 8px; line-height: 1.4;">
+                                    Only ${ovApiResults.size} real-time stops searched.<br>
+                                    <strong>Configure Backend API URL below</strong> to search 46,000+ schedule stops.<br>
+                                    Example: http://192.168.178.80:5001
+                                </small>
+                            </div>`;
+                    } else {
+                        resultsDiv.innerHTML = `
+                            <div class="search-error">
+                                <strong>No stops found</strong><br>
+                                <small style="display: block; margin-top: 8px; line-height: 1.4;">
+                                    No matching stops found in real-time or schedule data.<br>
+                                    Try nearby major stops like stations or main bus stops.
+                                </small>
+                            </div>`;
+                    }
                 } else {
                     // Limit to 20 results
                     const displayResults = results.slice(0, 20);
                     resultsDiv.innerHTML = '<div class="search-results">' + 
-                        displayResults.map(result => `
-                            <div class="search-result-item" onclick="selectStop('${result.code}', '${result.name.replace(/'/g, "\\'")}', ${result.lat}, ${result.lon})">
-                                <div class="search-result-name">${result.name}</div>
-                                <div class="search-result-code">Code: ${result.code}</div>
-                            </div>
-                        `).join('') +
+                        displayResults.map(result => {
+                            const badge = result.hasRealtime 
+                                ? '<span style="background: #4caf50; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">🟢 Real-time</span>'
+                                : '<span style="background: #ff9800; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px;">🟡 Schedule</span>';
+                            const directionInfo = result.direction 
+                                ? `<div class="search-result-direction" style="color: #555; font-size: 12px; margin-top: 4px;">→ ${result.direction}</div>`
+                                : '';
+                            return `
+                                <div class="search-result-item" onclick="selectStop('${result.code}', '${result.name.replace(/'/g, "\\'")}', ${result.lat}, ${result.lon})">
+                                    <div class="search-result-name">${result.name}</div>
+                                    <div style="margin-top: 4px;">${badge}</div>
+                                    ${directionInfo}
+                                </div>
+                            `;
+                        }).join('') +
                         '</div>';
                     
                     if (results.length > 20) {
