@@ -234,19 +234,19 @@ class GTFSParser:
     def _parse_stop_times(self):
         """
         Parse stop_times.txt from GTFS ZIP
-        WARNING: This is a 1.2GB file - only index recent/upcoming departures
+        WARNING: This is a 1.2GB file - indexing millions of departures
+        
+        Current strategy: Index first 2M rows (~1GB RAM) for broad coverage
+        TODO: Implement SQLite database for production (proper indexing + date filtering)
         """
         try:
-            # We'll only index today's and tomorrow's departures
-            # Full indexing would require too much memory
+            logger.info("Indexing stop_times.txt (first 2M rows for broad coverage)...")
+            logger.info("This will take 2-3 minutes and use ~1GB RAM")
             
-            logger.info("Note: Indexing sample of stop_times for memory efficiency")
-            logger.info("Full schedule indexing would require ~5GB+ RAM")
-            
-            # For MVP: Just parse first N lines to demonstrate
-            # In production: Use a proper database (SQLite, PostgreSQL)
-            
-            max_lines = 100000  # Sample first 100k lines for demo
+            # Increased from 100k → 2M for proper coverage
+            # 100k rows = ~497 stops (1%)
+            # 2M rows = ~20,000-30,000 stops (50-70% coverage estimate)
+            max_lines = 2_000_000
             parsed = 0
             
             with zipfile.ZipFile(self.gtfs_file, 'r') as zf:
@@ -276,9 +276,14 @@ class GTFSParser:
                         })
                         
                         parsed += 1
+                        
+                        # Progress logging every 250k rows
+                        if parsed % 250_000 == 0:
+                            logger.info(f"  ... processed {parsed:,} rows, {len(self.stop_times):,} stops indexed so far")
             
-            logger.info(f"Indexed {parsed} stop times for {len(self.stop_times)} stops")
-            logger.info("⚠️  This is a sample. Full schedule requires database backend.")
+            logger.info(f"✅ Indexed {parsed:,} stop times for {len(self.stop_times):,} stops")
+            coverage_pct = (len(self.stop_times) / len(self.stops)) * 100 if self.stops else 0
+            logger.info(f"📊 Coverage: {coverage_pct:.1f}% of all stops have schedule data")
             
         except Exception as e:
             logger.error(f"Failed to parse stop_times.txt: {e}")

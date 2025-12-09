@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Optional
 
 from config import settings
-from gtfs_parser import GTFSParser
+from gtfs_db import GTFSDatabase  # SQLite-backed for production efficiency
 
 # Configure logging
 logging.basicConfig(
@@ -42,8 +42,27 @@ limiter = Limiter(
     storage_uri="memory://"
 )
 
-# Global GTFS parser instance
-gtfs_parser: Optional[GTFSParser] = None
+# Global GTFS database instance
+gtfs_parser: Optional[GTFSDatabase] = None
+
+
+def init_gtfs_data():
+    """Initialize GTFS database on startup"""
+    global gtfs_parser
+    
+    logger.info("Loading GTFS database (first run builds DB, then instant)...")
+    
+    try:
+        gtfs_parser = GTFSDatabase(settings.GTFS_DATA_DIR)
+        gtfs_parser.load_data()  # One-time DB build, then instant restarts
+        logger.info(f"✅ GTFS database ready: {gtfs_parser.get_stats()}")
+    except Exception as e:
+        logger.error(f"❌ Failed to load GTFS database: {e}")
+        # Don't fail startup, but API will return errors
+
+
+# Initialize GTFS data when module is imported (works with both flask run and python app.py)
+init_gtfs_data()
 
 
 @app.before_request
@@ -61,21 +80,6 @@ def security_headers(response):
     if not settings.DEBUG:
         response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
     return response
-
-
-def init_gtfs_data():
-    """Initialize GTFS data on startup"""
-    global gtfs_parser
-    
-    logger.info("Loading GTFS data (this may take a minute)...")
-    
-    try:
-        gtfs_parser = GTFSParser(settings.GTFS_DATA_DIR)
-        gtfs_parser.load_data()  # Synchronous - simpler!
-        logger.info(f"✅ GTFS data loaded: {gtfs_parser.get_stats()}")
-    except Exception as e:
-        logger.error(f"❌ Failed to load GTFS data: {e}")
-        # Don't fail startup, but API will return errors
 
 
 @app.route("/")
