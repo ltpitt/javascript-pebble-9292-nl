@@ -463,6 +463,27 @@ function formatTimeRemaining(departureTime) {
   }
 }
 
+// Format absolute time from departure time
+function formatAbsoluteTime(departureTime) {
+  if (departureTime.indexOf('T') !== -1) {
+    // ISO datetime from OV API
+    var departure = new Date(departureTime);
+    var hours = departure.getHours();
+    var mins = departure.getMinutes();
+    return (hours < 10 ? '0' : '') + hours + ':' + (mins < 10 ? '0' : '') + mins;
+  } else {
+    // Time string from backend API (HH:MM:SS)
+    return departureTime.substring(0, 5); // "HH:MM"
+  }
+}
+
+// Truncate destination text to fit Pebble screen
+function truncateDestination(text, maxLength) {
+  if (!text) return '';
+  if (text.length <= maxLength) return text;
+  return text.substring(0, maxLength - 3) + '...';
+}
+
 // Show departures in a menu
 function showDepartures(stopName, departures, mainMenu, loadingCard) {
   console.log('=== SHOW DEPARTURES START ===');
@@ -484,13 +505,13 @@ function showDepartures(stopName, departures, mainMenu, loadingCard) {
   var menuItems = [];
   
   departures.forEach(function(dep) {
-    var timeStr = formatTimeRemaining(dep.time);
-    var delayStr = dep.delay > 0 ? ' (+' + dep.delay + ')' : '';
-    var sourceIcon = dep.isRealtime ? ' ⏱' : ' 📅';
+    var absoluteTime = formatAbsoluteTime(dep.time);
+    var relativeTime = formatTimeRemaining(dep.time);
+    var destination = truncateDestination(dep.headsign || 'Unknown', 20);
     
     menuItems.push({
-      title: (dep.line || '?') + ' - ' + timeStr + delayStr + sourceIcon,
-      subtitle: dep.headsign || 'Unknown'
+      title: 'Line ' + (dep.line || '?') + ' - ' + destination,
+      subtitle: absoluteTime + ' (' + relativeTime + ')'
     });
   });
   
@@ -502,15 +523,48 @@ function showDepartures(stopName, departures, mainMenu, loadingCard) {
   });
   
   departureMenu.on('select', function(e) {
-    // Show details
-    var dep = departures[e.itemIndex];
-    var sourceText = dep.isRealtime ? '\nSource: Real-time' : '\nSource: Schedule';
+    // Show details for selected departure only
+    var selectedDep = departures[e.itemIndex];
+    var line = selectedDep.line;
+    var headsign = selectedDep.headsign;
+    
+    // Get absolute and relative time for selected departure
+    var absTime = formatAbsoluteTime(selectedDep.time);
+    var relTime = formatTimeRemaining(selectedDep.time);
+    
+    // Find next departure for same line/destination
+    var nextDep = null;
+    for (var i = e.itemIndex + 1; i < departures.length; i++) {
+      if (departures[i].line === line && departures[i].headsign === headsign) {
+        nextDep = departures[i];
+        break;
+      }
+    }
+    
+    // Build body with next departure and data source
+    var bodyText = absTime + ' (in ' + relTime + ')';
+    
+    // Show delay if present
+    if (selectedDep.delay > 0) {
+      bodyText += '\nDelayed +' + selectedDep.delay + ' min';
+    }
+    
+    bodyText += '\n';
+    
+    // Show next departure
+    if (nextDep) {
+      var nextAbsTime = formatAbsoluteTime(nextDep.time);
+      var nextRelTime = formatTimeRemaining(nextDep.time);
+      bodyText += '\nNext: ' + nextAbsTime + ' (' + nextRelTime + ')';
+    }
+    
+    // Data source
+    bodyText += '\n\n' + (selectedDep.isRealtime ? 'Real-time' : 'Schedule');
+    
     var detailCard = new UI.Card({
-      title: 'Line ' + dep.line,
-      subtitle: dep.headsign,
-      body: 'Departs: ' + formatTimeRemaining(dep.time) + 
-            (dep.delay > 0 ? '\nDelay: +' + dep.delay + ' min' : '\nOn time') +
-            sourceText,
+      title: 'Line ' + line + ' to ' + headsign,
+      subtitle: '',
+      body: bodyText,
       scrollable: true
     });
     detailCard.show();
