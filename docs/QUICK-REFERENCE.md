@@ -252,7 +252,7 @@ getDepartures('hlmbyz', function(err, departures) {
 
 - **[OV-API-COMPLETE-GUIDE.md](OV-API-COMPLETE-GUIDE.md)** - Complete verified guide with GTFS details
 - **[README.md](README.md)** - Documentation index
-- `src/js/app.js` - Current implementation (working correctly)
+- `pebble-app/js/app.js` - Current implementation (working correctly)
 
 ---
 
