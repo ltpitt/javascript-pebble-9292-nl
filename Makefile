@@ -58,7 +58,7 @@ venv:
 install: venv
 	@echo "$(BLUE)📥 Installing Python dependencies...$(NC)"
 	$(PIP) install --upgrade pip
-	$(PIP) install pillow flask flask-cors flask-limiter requests
+	$(PIP) install flask flask-cors flask-limiter requests
 	@echo "$(GREEN)✅ Python dependencies installed!$(NC)"
 	@echo ""
 	@echo "$(YELLOW)⚠️  Pebble SDK must be installed separately$(NC)"
