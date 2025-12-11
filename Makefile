@@ -88,9 +88,9 @@ build:
 # Lint JavaScript files
 lint:
 	@echo "$(BLUE)🔍 Validating JavaScript syntax...$(NC)"
-	@JS_FILES=$$(find src/js -name '*.js' 2>/dev/null); \
+	@JS_FILES=$$(find pebble-app/js -name '*.js' 2>/dev/null); \
 	if [ -z "$$JS_FILES" ]; then \
-		echo "$(YELLOW)⚠️  No JavaScript files found in src/js/$(NC)"; \
+		echo "$(YELLOW)⚠️  No JavaScript files found in pebble-app/js/$(NC)"; \
 	else \
 		for file in $$JS_FILES; do \
 			$(NODE) -c $$file && echo "$(GREEN)✅ $$file: OK$(NC)"; \
@@ -180,7 +180,7 @@ dev: validate
 	@echo "$(GREEN)✅ Ready for development!$(NC)"
 	@echo ""
 	@echo "$(BLUE)Next steps:$(NC)"
-	@echo "  • Edit your code in src/js/app.js"
+	@echo "  • Edit your code in pebble-app/js/app.js"
 	@echo "  • Run 'make validate' to check your changes"
 	@echo "  • Run 'make build' to build the app"
 	@echo "  • Run 'pebble install --emulator basalt' to test in emulator"

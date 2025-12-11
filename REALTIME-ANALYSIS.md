@@ -314,7 +314,7 @@ message += 'Try a different time or configure a major station in settings.';
 
 ## Files That Need Changes
 
-1. **src/js/app.js** (this file)
+1. **pebble-app/js/app.js** (this file)
    - `findNearbyStops()` - Add smart sorting
    - `fetchDeparturesFromStops()` - Better error messages
    - Lines 120-188, 502-520

@@ -108,9 +108,9 @@ Read these thoroughly before making OV API changes:
 - **User Data**: Stored via Pebble Settings API (config.html)
 
 ### File Structure
-- `src/js/app.js` - Main application logic, OV API integration
-- `src/js/loader.js` - Pebble.js framework loader
-- `src/main.c` - Native C host for Pebble.js
+- `pebble-app/js/app.js` - Main application logic, OV API integration
+- `pebble-app/js/loader.js` - Pebble.js framework loader
+- `pebble-app/main.c` - Native C host for Pebble.js
 - `config.html` - Configuration page (opens on phone)
 - `appinfo.json` - Pebble app metadata
 - `resources/` - Images and fonts
@@ -139,7 +139,7 @@ Read these thoroughly before making OV API changes:
 2. **Consider GPS vs saved stops**: Different data availability
 3. **Plan fallback strategy**: Backend GTFS API when OV API fails
 4. **Test on emulator**: `pebble build && pebble install --emulator basalt`
-5. **Validate JavaScript**: `node -c src/js/app.js` before building
+5. **Validate JavaScript**: `node -c pebble-app/js/app.js` before building
 
 ### When Debugging OV API Issues
 1. **Check if stop is real-time timing point**: 
@@ -176,10 +176,10 @@ Read these thoroughly before making OV API changes:
 ### Validation (Always Run First)
 ```bash
 # JavaScript syntax check (1-2 seconds)
-node -c src/js/app.js
+node -c pebble-app/js/app.js
 
 # Code quality check
-npx jshint src/js/app.js
+npx jshint pebble-app/js/app.js
 
 # Validate appinfo.json
 python3 -m json.tool appinfo.json

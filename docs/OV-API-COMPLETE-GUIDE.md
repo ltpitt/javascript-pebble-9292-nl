@@ -192,7 +192,7 @@ curl "http://v0.ovapi.nl/stopareacode/stoparea:456014"
 
 **Implementation:**
 ```javascript
-// Already working in src/js/app.js
+// Already working in pebble-app/js/app.js
 fetch('http://v0.ovapi.nl/stopareacode/' + stopCode)
   .then(response => response.json())
   .then(data => {
