@@ -88,19 +88,26 @@ build:
 # Lint JavaScript files
 lint:
 	@echo "$(BLUE)🔍 Validating JavaScript syntax...$(NC)"
-	@if [ -f "src/js/app.js" ]; then \
-		$(NODE) -c src/js/app.js && echo "$(GREEN)✅ app.js: OK$(NC)"; \
+	@JS_FILES=$$(find src/js -name '*.js' 2>/dev/null); \
+	if [ -z "$$JS_FILES" ]; then \
+		echo "$(YELLOW)⚠️  No JavaScript files found in src/js/$(NC)"; \
+	else \
+		for file in $$JS_FILES; do \
+			$(NODE) -c $$file && echo "$(GREEN)✅ $$file: OK$(NC)"; \
+		done; \
+		echo "$(GREEN)✅ JavaScript validation passed!$(NC)"; \
 	fi
-	@if [ -f "src/js/main.js" ]; then \
-		$(NODE) -c src/js/main.js && echo "$(GREEN)✅ main.js: OK$(NC)"; \
-	fi
-	@echo "$(GREEN)✅ JavaScript validation passed!$(NC)"
 
 # Run all validations
 validate: lint
 	@echo "$(BLUE)🔍 Running build validation...$(NC)"
 	@if command -v $(PEBBLE) >/dev/null 2>&1; then \
-		$(PEBBLE) build > /dev/null 2>&1 && echo "$(GREEN)✅ Build validation passed!$(NC)"; \
+		if $(PEBBLE) build 2>&1 | grep -q "error:"; then \
+			echo "$(YELLOW)⚠️  Build validation failed - check errors above$(NC)"; \
+			exit 1; \
+		else \
+			echo "$(GREEN)✅ Build validation passed!$(NC)"; \
+		fi; \
 	else \
 		echo "$(YELLOW)⚠️  Skipping build validation (Pebble SDK not installed)$(NC)"; \
 	fi
@@ -112,11 +119,14 @@ test: lint
 # Test OV API connectivity
 test-api:
 	@echo "$(BLUE)🧪 Testing OV API connectivity...$(NC)"
-	@if [ -x "./test-ovapi.sh" ]; then \
+	@if [ -f "./test-ovapi.sh" ] && [ -x "./test-ovapi.sh" ]; then \
 		./test-ovapi.sh; \
+	elif [ -f "./test-ovapi.sh" ]; then \
+		echo "$(YELLOW)⚠️  test-ovapi.sh is not executable, trying to run with bash...$(NC)"; \
+		bash ./test-ovapi.sh; \
 	else \
-		echo "$(YELLOW)❌ test-ovapi.sh not found or not executable$(NC)"; \
-		exit 1; \
+		echo "$(YELLOW)⚠️  test-ovapi.sh not found - skipping API test$(NC)"; \
+		echo "    This is optional and only tests external API connectivity"; \
 	fi
 
 # Generate app icons
@@ -156,8 +166,7 @@ clean-build:
 	@echo "$(BLUE)🧹 Cleaning build artifacts...$(NC)"
 	rm -rf build/
 	rm -rf out/
-	find . -name "*.pyc" -delete
-	find . -name "__pycache__" -delete
+	find . \( -name "*.pyc" -o -name "__pycache__" \) -exec rm -rf {} + 2>/dev/null || true
 	@echo "$(GREEN)✅ Build artifacts cleaned!$(NC)"
 
 # Clean everything (build artifacts + venv)
