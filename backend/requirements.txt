@@ -10,7 +10,7 @@ flask-limiter>=3.5.0
 requests>=2.31.0
 
 # Production WSGI Server (for Flask)
-gunicorn>=21.2.0
+gunicorn>=22.0.0
 
 # Alternative: ASGI server with ASGI wrapper for Flask
 # Note: Current app.py uses Flask (WSGI), but uvicorn is available for deployment
