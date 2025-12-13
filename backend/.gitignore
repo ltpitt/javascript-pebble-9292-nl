@@ -2,9 +2,12 @@
 data/
 *.zip
 *.csv
-*.txt
+data/*.txt
 *.db
 *.sqlite
+
+# Exception: Keep requirements.txt
+!requirements.txt
 
 # Python
 __pycache__/

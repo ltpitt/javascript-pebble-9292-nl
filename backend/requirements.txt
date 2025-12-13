@@ -1,0 +1,20 @@
+# NextRide Backend API Dependencies
+# Flask-based backend for GTFS schedule data
+
+# Web Framework
+Flask>=3.0.0
+flask-cors>=4.0.0
+flask-limiter>=3.5.0
+
+# HTTP Client
+requests>=2.31.0
+
+# Production WSGI Server (for Flask)
+gunicorn>=21.2.0
+
+# Alternative: ASGI server with ASGI wrapper for Flask
+# Note: Current app.py uses Flask (WSGI), but Makefile/Dockerfile reference uvicorn
+# If using uvicorn with Flask, you need: pip install asgiref
+# For proper ASGI support, consider migrating to FastAPI
+uvicorn>=0.25.0
+asgiref>=3.7.0
