@@ -13,8 +13,8 @@ requests>=2.31.0
 gunicorn>=21.2.0
 
 # Alternative: ASGI server with ASGI wrapper for Flask
-# Note: Current app.py uses Flask (WSGI), but Makefile/Dockerfile reference uvicorn
-# If using uvicorn with Flask, you need: pip install asgiref
+# Note: Current app.py uses Flask (WSGI), but uvicorn is available for deployment
+# via backend/Dockerfile which uses: CMD ["uvicorn", "app:app", ...]
 # For proper ASGI support, consider migrating to FastAPI
 uvicorn>=0.25.0
 asgiref>=3.7.0

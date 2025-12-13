@@ -48,10 +48,12 @@ dev: $(VENV)
 
 dev-bg: $(VENV)
 	@echo "🚀 Starting development server in background on http://$(HOST):$(PORT)"
+	@# Check if server is already running
 	@if [ -f .uvicorn.pid ]; then \
 		echo "❌ Server already running (PID file exists). Run 'make stop' first."; \
 		exit 1; \
 	fi
+	@# Start server in background and save PID
 	@DEBUG=true nohup $(UVICORN) app:app --host $(HOST) --port $(PORT) --reload > server.log 2>&1 & echo $$! > .uvicorn.pid
 	@echo "✅ Server started with PID: $$(cat .uvicorn.pid)"
 	@echo "📋 View logs: tail -f server.log"
@@ -70,6 +72,7 @@ start: $(VENV)
 
 start-bg: $(VENV)
 	@echo "🚀 Starting production server in background on http://$(HOST):$(PORT)"
+	@# Check if server is already running
 	@if [ -f .app.pid ]; then \
 		echo "❌ Server already running (PID file exists). Run 'make stop' first."; \
 		exit 1; \
@@ -77,6 +80,7 @@ start-bg: $(VENV)
 	@echo ""
 	@echo "⚠️  First startup will download ~1.2GB GTFS data (2-5 minutes)"
 	@echo ""
+	@# Start server in background and save PID
 	@nohup $(PYTHON) app.py > server.log 2>&1 & echo $$! > .app.pid
 	@echo "✅ Server started with PID: $$(cat .app.pid)"
 	@echo "📋 View logs: tail -f server.log"
