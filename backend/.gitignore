@@ -48,6 +48,12 @@ ENV/
 # Logs
 *.log
 logs/
+server.log
+
+# PID files
+*.pid
+.uvicorn.pid
+.app.pid
 
 # OS
 .DS_Store
