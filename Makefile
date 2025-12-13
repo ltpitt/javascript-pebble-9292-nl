@@ -1,4 +1,4 @@
-.PHONY: help install clean build lint test test-api generate-icons backend-install backend-dev backend-dev-bg backend-start backend-start-bg backend-stop backend-test backend-clean venv-check
+.PHONY: help install clean build lint test test-api generate-icons backend-install backend-venv-check backend-dev backend-dev-bg backend-start backend-start-bg backend-stop backend-test backend-clean venv-check
 
 # Variables
 VENV := venv
@@ -35,6 +35,7 @@ help:
 	@echo "  make generate-icons    - Generate app icons from Python scripts"
 	@echo ""
 	@echo "$(BLUE)Backend Operations:$(NC)"
+	@echo "  make backend-install   - Install backend dependencies (creates backend/venv)"
 	@echo "  make backend-dev       - Start backend in development mode (foreground)"
 	@echo "  make backend-dev-bg    - Start backend in development mode (background)"
 	@echo "  make backend-start     - Start backend in production mode (foreground)"
@@ -47,7 +48,7 @@ help:
 	@echo "  make clean             - Remove build artifacts and venv"
 	@echo "  make clean-build       - Remove only build artifacts"
 	@echo ""
-	@echo "$(YELLOW)Note: First-time setup requires 'make install' to create venv$(NC)"
+	@echo "$(YELLOW)Note: Backend commands auto-install dependencies if needed$(NC)"
 	@echo ""
 
 # Create Python virtual environment
@@ -139,23 +140,32 @@ generate-icons: venv-check
 	@echo "$(GREEN)✅ Icons generated!$(NC)"
 
 # Backend operations (delegate to backend/Makefile)
+
+# Check if backend venv exists and install if needed
+backend-venv-check:
+	@if [ ! -d "backend/venv" ]; then \
+		echo "$(YELLOW)⚠️  Backend virtual environment not found.$(NC)"; \
+		echo "$(BLUE)📦 Running 'make backend-install' to create it...$(NC)"; \
+		$(MAKE) backend-install; \
+	fi
+
 backend-install:
 	@echo "$(BLUE)📦 Installing backend dependencies...$(NC)"
 	@cd backend && $(MAKE) install
 
-backend-dev:
+backend-dev: backend-venv-check
 	@echo "$(BLUE)🚀 Starting backend in development mode...$(NC)"
 	@cd backend && $(MAKE) dev
 
-backend-dev-bg:
+backend-dev-bg: backend-venv-check
 	@echo "$(BLUE)🚀 Starting backend in development mode (background)...$(NC)"
 	@cd backend && $(MAKE) dev-bg
 
-backend-start:
+backend-start: backend-venv-check
 	@echo "$(BLUE)🚀 Starting backend in production mode...$(NC)"
 	@cd backend && $(MAKE) start
 
-backend-start-bg:
+backend-start-bg: backend-venv-check
 	@echo "$(BLUE)🚀 Starting backend in production mode (background)...$(NC)"
 	@cd backend && $(MAKE) start-bg
 
@@ -163,7 +173,7 @@ backend-stop:
 	@echo "$(BLUE)🛑 Stopping backend...$(NC)"
 	@cd backend && $(MAKE) stop
 
-backend-test:
+backend-test: backend-venv-check
 	@echo "$(BLUE)🧪 Testing backend API...$(NC)"
 	@cd backend && $(MAKE) test
 
