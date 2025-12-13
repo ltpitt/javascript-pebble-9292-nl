@@ -146,7 +146,7 @@ backend-venv-check:
 	@if [ ! -d "backend/venv" ]; then \
 		echo "$(YELLOW)⚠️  Backend virtual environment not found.$(NC)"; \
 		echo "$(BLUE)📦 Running 'make backend-install' to create it...$(NC)"; \
-		$(MAKE) backend-install; \
+		$(MAKE) backend-install || exit 1; \
 	fi
 
 backend-install:
