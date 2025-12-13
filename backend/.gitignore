@@ -2,9 +2,12 @@
 data/
 *.zip
 *.csv
-*.txt
+data/*.txt
 *.db
 *.sqlite
+
+# Exception: Keep requirements.txt
+!requirements.txt
 
 # Python
 __pycache__/
@@ -45,6 +48,12 @@ ENV/
 # Logs
 *.log
 logs/
+server.log
+
+# PID files
+*.pid
+.uvicorn.pid
+.app.pid
 
 # OS
 .DS_Store

@@ -1,4 +1,4 @@
-.PHONY: help install dev start stop restart logs clean test
+.PHONY: help install dev dev-bg start start-bg stop restart logs clean test
 
 # Variables
 VENV := venv
@@ -12,10 +12,12 @@ help:
 	@echo "NextRide Backend API - Available Commands:"
 	@echo ""
 	@echo "  make install    - Create venv and install dependencies"
-	@echo "  make dev        - Run in development mode (auto-reload)"
-	@echo "  make start      - Start server in production mode"
-	@echo "  make stop       - Stop running server"
-	@echo "  make restart    - Restart server"
+	@echo "  make dev        - Run in development mode (foreground, auto-reload)"
+	@echo "  make dev-bg     - Run in development mode (background, auto-reload)"
+	@echo "  make start      - Start server in production mode (foreground)"
+	@echo "  make start-bg   - Start server in production mode (background)"
+	@echo "  make stop       - Stop background server (requires PID file)"
+	@echo "  make restart    - Restart server (stop + start)"
 	@echo "  make logs       - Show server logs (if running via systemd)"
 	@echo "  make test       - Run API tests"
 	@echo "  make clean      - Remove venv and cached data"
@@ -39,7 +41,23 @@ dev: $(VENV)
 	@echo "🚀 Starting development server on http://$(HOST):$(PORT)"
 	@echo "📚 API docs: http://$(HOST):$(PORT)/docs"
 	@echo ""
+	@echo "⚠️  Running in foreground. Press Ctrl+C to stop."
+	@echo "    To run in background, use 'make dev-bg'"
+	@echo ""
 	DEBUG=true $(UVICORN) app:app --host $(HOST) --port $(PORT) --reload
+
+dev-bg: $(VENV)
+	@echo "🚀 Starting development server in background on http://$(HOST):$(PORT)"
+	@# Check if server is already running
+	@if [ -f .uvicorn.pid ]; then \
+		echo "❌ Server already running (PID file exists). Run 'make stop' first."; \
+		exit 1; \
+	fi
+	@# Start server in background and save PID
+	@DEBUG=true nohup $(UVICORN) app:app --host $(HOST) --port $(PORT) --reload > server.log 2>&1 & echo $$! > .uvicorn.pid
+	@echo "✅ Server started with PID: $$(cat .uvicorn.pid)"
+	@echo "📋 View logs: tail -f server.log"
+	@echo "🛑 Stop server: make stop"
 
 start: $(VENV)
 	@echo "🚀 Starting production server on http://$(HOST):$(PORT)"
@@ -47,11 +65,53 @@ start: $(VENV)
 	@echo "⚠️  First startup will download ~1.2GB GTFS data (2-5 minutes)"
 	@echo "    Please be patient..."
 	@echo ""
+	@echo "⚠️  Running in foreground. Press Ctrl+C to stop."
+	@echo "    To run in background, use 'make start-bg'"
+	@echo ""
 	$(PYTHON) app.py
+
+start-bg: $(VENV)
+	@echo "🚀 Starting production server in background on http://$(HOST):$(PORT)"
+	@# Check if server is already running
+	@if [ -f .app.pid ]; then \
+		echo "❌ Server already running (PID file exists). Run 'make stop' first."; \
+		exit 1; \
+	fi
+	@echo ""
+	@echo "⚠️  First startup will download ~1.2GB GTFS data (2-5 minutes)"
+	@echo ""
+	@# Start server in background and save PID
+	@nohup $(PYTHON) app.py > server.log 2>&1 & echo $$! > .app.pid
+	@echo "✅ Server started with PID: $$(cat .app.pid)"
+	@echo "📋 View logs: tail -f server.log"
+	@echo "🛑 Stop server: make stop"
 
 stop:
 	@echo "🛑 Stopping server..."
-	@pkill -f "uvicorn app:app" || echo "No server running"
+	@if [ -f .uvicorn.pid ]; then \
+		PID=$$(cat .uvicorn.pid); \
+		if ps -p $$PID > /dev/null 2>&1; then \
+			kill $$PID && echo "✅ Server stopped (PID: $$PID)"; \
+			rm -f .uvicorn.pid; \
+		else \
+			echo "⚠️  No process found with PID $$PID (stale PID file)"; \
+			rm -f .uvicorn.pid; \
+		fi; \
+	elif [ -f .app.pid ]; then \
+		PID=$$(cat .app.pid); \
+		if ps -p $$PID > /dev/null 2>&1; then \
+			kill $$PID && echo "✅ Server stopped (PID: $$PID)"; \
+			rm -f .app.pid; \
+		else \
+			echo "⚠️  No process found with PID $$PID (stale PID file)"; \
+			rm -f .app.pid; \
+		fi; \
+	else \
+		echo "⚠️  No PID file found."; \
+		echo "    • If server is running in foreground, use Ctrl+C to stop it"; \
+		echo "    • If server was started outside of make, find and kill the process manually"; \
+		echo "    • PID files are only created when using 'make start-bg' or 'make dev-bg'"; \
+	fi
 
 restart: stop start
 
@@ -75,6 +135,7 @@ clean:
 	rm -rf __pycache__
 	rm -rf *.pyc
 	rm -rf data/*.zip
+	rm -f .uvicorn.pid .app.pid server.log
 	@echo "✅ Cleanup complete"
 
 # Docker commands
