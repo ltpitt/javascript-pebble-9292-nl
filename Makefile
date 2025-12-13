@@ -1,4 +1,4 @@
-.PHONY: help install clean build lint test test-api generate-icons backend-install backend-dev backend-clean venv-check
+.PHONY: help install clean build lint test test-api generate-icons backend-install backend-dev backend-dev-bg backend-start backend-start-bg backend-stop backend-test backend-clean venv-check
 
 # Variables
 VENV := venv
@@ -35,9 +35,11 @@ help:
 	@echo "  make generate-icons    - Generate app icons from Python scripts"
 	@echo ""
 	@echo "$(BLUE)Backend Operations:$(NC)"
-	@echo "  make backend-dev       - Start backend in development mode"
-	@echo "  make backend-start     - Start backend in production mode"
-	@echo "  make backend-stop      - Stop backend server"
+	@echo "  make backend-dev       - Start backend in development mode (foreground)"
+	@echo "  make backend-dev-bg    - Start backend in development mode (background)"
+	@echo "  make backend-start     - Start backend in production mode (foreground)"
+	@echo "  make backend-start-bg  - Start backend in production mode (background)"
+	@echo "  make backend-stop      - Stop backend server (background only)"
 	@echo "  make backend-test      - Test backend API endpoints"
 	@echo "  make backend-clean     - Clean backend artifacts"
 	@echo ""
@@ -145,9 +147,17 @@ backend-dev:
 	@echo "$(BLUE)🚀 Starting backend in development mode...$(NC)"
 	@cd backend && $(MAKE) dev
 
+backend-dev-bg:
+	@echo "$(BLUE)🚀 Starting backend in development mode (background)...$(NC)"
+	@cd backend && $(MAKE) dev-bg
+
 backend-start:
 	@echo "$(BLUE)🚀 Starting backend in production mode...$(NC)"
 	@cd backend && $(MAKE) start
+
+backend-start-bg:
+	@echo "$(BLUE)🚀 Starting backend in production mode (background)...$(NC)"
+	@cd backend && $(MAKE) start-bg
 
 backend-stop:
 	@echo "$(BLUE)🛑 Stopping backend...$(NC)"
