@@ -1,10 +1,10 @@
 name: Update GTFS Data
 
 on:
-  schedule:
-    # Run daily at 04:00 CET (03:00 UTC in winter, 02:00 UTC in summer)
-    # Runs after gtfs.ovapi.nl updates at 03:00 UTC
-    - cron: '0 3 * * *'  # 03:00 UTC daily
+  # schedule:
+  #   # Run daily at 04:00 CET (03:00 UTC in winter, 02:00 UTC in summer)
+  #   # Runs after gtfs.ovapi.nl updates at 03:00 UTC
+  #   - cron: '0 3 * * *'  # 03:00 UTC daily
   
   workflow_dispatch:  # Allow manual trigger
 
